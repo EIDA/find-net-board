@@ -35,24 +35,44 @@ for net in r.json()["networks"]:
     datacite = r.json()
     # page test
     r.request.get(datacite["url"])
-    if r.status_code == 200:
-        # success in database
-        #query = "UPDATE networks_tests SET doi_result = %s WHERE test_time = %s AND name = %s;"
-    else:
-        # fail in database
+    page_result = True if r.status_code == 200 else False
     # open test UNSURE ABOUT THAT
+    # TODO
     # license test
-    if datacite['rightsList']:
-        # success in database
-        # store license
-    else:
-        # fail in database
-        # clear comment
+    license_result = True if datacite["rightsList"] else False
+    license_comment = ""
+    if license_result:
+        for license in datacite["rightsList"]:
+            license_comment += license["rightsUri"] + ", "
+    license_comment = license_comment[:-2] if license_comment else None
     # store publisher in database
+    publisher = net["publisher"]["name"] if net["publisher"]["name"] else None
 
-    # StationXML test UNSURE HOW TO
+    # find datacenter
+    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query?includedatasets=true")
+    datacenter = None
+    datacenter_station_ws = None
+    for d in r.json()["datacenters"]:
+        for r in d["repositories"]:
+            if r["name"] == "archive" or r["name"] == "ARCHIVE":
+                for dset in r["datasets"]:
+                    start = datetime.strptime(net["start_date"], "%m-%d-%y")
+                    end = datetime.strptime(net["end_date"], "%m-%d-%y") if net["end_date"] else datetime.strptime("2100-01-01", "%m-%d-%y")
+                    dc_start = datetime.strptime(dset["starttime"], "%m-%d-%yT%H:%M:%S")
+                    if dset["priority"] == 1 and dset["network"] == net["fdsn_code"] and start <= dc_start <= end:
+                        datacenter = d["name"]
+                        for s in r["services"]:
+                            if s["name"] == "fdsnws-station-1":
+                                datacenter_station_ws = s["url"]
+                        break
+        if datacenter is not None:
+            break
 
-    # commit changes for network net
+    # stationXML tests
+
+    # update database and commit changes for network net
+    query = "UPDATE networks_tests SET page_result = %s, license_result = %s, license_comment = %s, publisher = %s, datacenter = %s WHERE test_time = %s AND name = %s;"
+    cursor.execute(query, (page_result, license_result, license_comment, publisher, datacenter, current_time, net["name"]))
     cnx.commit()
 
 cursor.close()

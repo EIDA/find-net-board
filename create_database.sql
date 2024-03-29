@@ -13,6 +13,7 @@ CREATE TABLE networks_tests (
     license_result BOOLEAN NOT NULL,
     license_comment VARCHAR(500),
     publisher VARCHAR(500),
+    datacenter VARCHAR(30),
     stationxml_result BOOLEAN NOT NULL,
     stationxml_comment VARCHAR(1000),
     PRIMARY KEY (test_time, name)
