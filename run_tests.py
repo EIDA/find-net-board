@@ -2,6 +2,7 @@ import requests
 import logging
 from mysql import connector
 from datetime import datetime
+import xml.etree.ElementTree as ET
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -36,8 +37,6 @@ for net in r.json()["networks"]:
     # page test
     r.request.get(datacite["url"])
     page_result = True if r.status_code == 200 else False
-    # open test UNSURE ABOUT THAT
-    # TODO
     # license test
     license_result = True if datacite["rightsList"] else False
     license_comment = ""
@@ -69,6 +68,22 @@ for net in r.json()["networks"]:
             break
 
     # stationXML tests
+    r = requests.get(datacenter_station_ws+f"query?network={net["fdsn_code"]}&level=network")
+    root = ET.fromstring(r.text)
+    namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
+    # doi match test
+    doi = root.find("./ns:Network/ns:Identifier", namespaces=namespace).text
+    if doi == net["doi"]:
+        # dois match
+    else:
+        # dois not match
+    # restriction status match
+    restriction = root.find("./ns:Network", namespaces=namespace).attrib["restrictedStatus"]
+    open = True if restriction in ['open', 'partial'] else False
+    if license_result == open:
+        # restrictions match
+    else:
+        # restrictions not match
 
     # update database and commit changes for network net
     query = "UPDATE networks_tests SET page_result = %s, license_result = %s, license_comment = %s, publisher = %s, datacenter = %s WHERE test_time = %s AND name = %s;"

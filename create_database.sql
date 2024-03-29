@@ -9,7 +9,6 @@ CREATE TABLE networks_tests (
     doi_result BOOLEAN NOT NULL,
     doi_comment VARCHAR(500),
     page_result BOOLEAN NOT NULL,
-    open_result BOOLEAN NOT NULL,
     license_result BOOLEAN NOT NULL,
     license_comment VARCHAR(500),
     publisher VARCHAR(500),
