@@ -1,19 +1,22 @@
 import requests
 import logging
-from mysql import connector
+import mysql.connector
 from datetime import datetime
 import xml.etree.ElementTree as ET
+import sys
 
 logging.basicConfig(level=logging.DEBUG)
 
 
 try:
-    cnx = connector.connect(user='root',
-                            password='root',
+    cnx = mysql.connector.connect(user='root',
+                            password='password',
                             host='localhost',
                             database='netstests')
-except:
+except Exception as e:
+    logging.error(e)
     logging.error('Database connection problem!')
+    sys.exit(1)
 cursor = cnx.cursor()
 
 logging.info("Getting all networks from FDSN")
@@ -35,7 +38,7 @@ for net in r.json()["networks"]:
     r = requests.get(dataciteapi+net["doi"])
     datacite = r.json()
     # page test
-    r.request.get(datacite["url"])
+    r = requests.get(datacite["url"])
     page_result = True if r.status_code == 200 else False
     # license test
     license_result = True if datacite["rightsList"] else False
@@ -45,7 +48,7 @@ for net in r.json()["networks"]:
             license_comment += license["rightsUri"] + ", "
     license_comment = license_comment[:-2] if license_comment else None
     # store publisher in database
-    publisher = net["publisher"]["name"] if net["publisher"]["name"] else None
+    publisher = datacite["publisher"]["name"] if datacite["publisher"]["name"] else None
 
     # find datacenter
     r = requests.get("https://www.fdsn.org/ws/datacenters/1/query?includedatasets=true")
@@ -55,9 +58,12 @@ for net in r.json()["networks"]:
         for r in d["repositories"]:
             if r["name"] == "archive" or r["name"] == "ARCHIVE":
                 for dset in r["datasets"]:
-                    start = datetime.strptime(net["start_date"], "%m-%d-%y")
-                    end = datetime.strptime(net["end_date"], "%m-%d-%y") if net["end_date"] else datetime.strptime("2100-01-01", "%m-%d-%y")
-                    dc_start = datetime.strptime(dset["starttime"], "%m-%d-%yT%H:%M:%S")
+                    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
+                    end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                    try:
+                        dc_start = datetime.strptime(dset["starttime"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                    except:
+                        print(dset["starttime"])
                     if dset["priority"] == 1 and dset["network"] == net["fdsn_code"] and start <= dc_start <= end:
                         datacenter = d["name"]
                         for s in r["services"]:
@@ -68,7 +74,7 @@ for net in r.json()["networks"]:
             break
 
     # stationXML tests
-    r = requests.get(datacenter_station_ws+f"query?network={net["fdsn_code"]}&level=network")
+    r = requests.get(datacenter_station_ws+f'query?network={net["fdsn_code"]}&level=network')
     root = ET.fromstring(r.text)
     namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
     # doi match
