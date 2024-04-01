@@ -71,23 +71,22 @@ for net in r.json()["networks"]:
     r = requests.get(datacenter_station_ws+f"query?network={net["fdsn_code"]}&level=network")
     root = ET.fromstring(r.text)
     namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
-    # doi match test
+    # doi match
     doi = root.find("./ns:Network/ns:Identifier", namespaces=namespace).text
-    if doi == net["doi"]:
-        # dois match
-    else:
-        # dois not match
-    # restriction status match
+    # restriction status
     restriction = root.find("./ns:Network", namespaces=namespace).attrib["restrictedStatus"]
     open = True if restriction in ['open', 'partial'] else False
-    if license_result == open:
-        # restrictions match
-    else:
-        # restrictions not match
+    stationxml_result = True if doi == net["doi"] and license_result == open else False
+    stationxml_comment = ""
+    if doi != net["doi"]:
+        stationxml_comment += "StationXML and FDSN DOIs mismatch, "
+    if license_result != open:
+        stationxml_comment += "StationXML and FDSN restriction status mismatch, "
+    stationxml_comment = stationxml_comment[:-2] if stationxml_comment else None
 
     # update database and commit changes for network net
-    query = "UPDATE networks_tests SET page_result = %s, license_result = %s, license_comment = %s, publisher = %s, datacenter = %s WHERE test_time = %s AND name = %s;"
-    cursor.execute(query, (page_result, license_result, license_comment, publisher, datacenter, current_time, net["name"]))
+    query = "UPDATE networks_tests SET page_result = %s, license_result = %s, license_comment = %s, publisher = %s, datacenter = %s, stationxml_result = %s, stationxml_comment = %s WHERE test_time = %s AND name = %s;"
+    cursor.execute(query, (page_result, license_result, license_comment, publisher, datacenter, stationxml_result, stationxml_comment, current_time, net["name"]))
     cnx.commit()
 
 cursor.close()
