@@ -27,10 +27,9 @@ current_time = datetime.now().replace(microsecond=0)
 with alive_bar(len(r.json()["networks"])) as pbar:
     for net in r.json()["networks"]:
         # doi test
-        doi_result = True if net["doi"] else False
-        doi_comment = net["doi"] if net["doi"] else None
-        query = "INSERT INTO networks_tests (test_time, name, code, startdate, enddate, doi_result, doi_comment) VALUES (%s, %s, %s, %s, %s, %s, %s);"
-        cursor.execute(query, (current_time, net["name"], net["fdsn_code"], net["start_date"], net["end_date"], doi_result, doi_comment))
+        doi = net["doi"] if net["doi"] else None
+        query = "INSERT INTO networks_tests (test_time, name, code, startdate, enddate, doi) VALUES (%s, %s, %s, %s, %s, %s);"
+        cursor.execute(query, (current_time, net["name"], net["fdsn_code"], net["start_date"], net["end_date"], doi))
         cnx.commit()
         if not net["doi"]:
             continue
@@ -43,12 +42,11 @@ with alive_bar(len(r.json()["networks"])) as pbar:
         r = requests.get(datacite["url"])
         page_result = True if r.status_code == 200 else False
         # license test
-        license_result = True if datacite.get("rightsList") else False
-        license_comment = ""
-        if license_result:
-            for license in datacite["rightsList"]:
-                license_comment += license["rightsUri"] + ", "
-        license_comment = license_comment[:-2] if license_comment else None
+        license = ""
+        if datacite.get("rightsList"):
+            for l in datacite["rightsList"]:
+                license += l["rightsUri"] + ", "
+        license = license[:-2] if license else None
         # store publisher in database
         publisher = datacite["publisher"]["name"] if datacite["publisher"]["name"] else None
 
@@ -91,21 +89,21 @@ with alive_bar(len(r.json()["networks"])) as pbar:
             root = ET.fromstring(r.text)
             namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
             # doi match
-            doi = root.find("./ns:Network/ns:Identifier", namespaces=namespace).text
+            doi_xml = root.find("./ns:Network/ns:Identifier", namespaces=namespace).text
             # restriction status
             restriction = root.find("./ns:Network", namespaces=namespace).attrib["restrictedStatus"]
             open = True if restriction in ['open', 'partial'] else False
-            stationxml_result = True if doi == net["doi"] and license_result == open else False
+            stationxml_result = True if doi_xml == net["doi"] and license_result == open else False
             stationxml_comment = ""
-            if doi != net["doi"]:
+            if doi_xml != net["doi"]:
                 stationxml_comment += "StationXML and FDSN DOIs mismatch, "
             if license_result != open:
                 stationxml_comment += "StationXML and FDSN restriction status mismatch, "
             stationxml_comment = stationxml_comment[:-2] if stationxml_comment else None
 
         # update database and commit changes for network net
-        query = "UPDATE networks_tests SET page_result = %s, license_result = %s, license_comment = %s, publisher = %s, datacenter = %s, stationxml_result = %s, stationxml_comment = %s WHERE test_time = %s AND name = %s;"
-        cursor.execute(query, (page_result, license_result, license_comment, publisher, datacenter, stationxml_result, stationxml_comment, current_time, net["name"]))
+        query = "UPDATE networks_tests SET page_result = %s, license = %s, publisher = %s, datacenter = %s, stationxml_result = %s, stationxml_comment = %s WHERE test_time = %s AND name = %s;"
+        cursor.execute(query, (page_result, license, publisher, datacenter, stationxml_result, stationxml_comment, current_time, net["name"]))
         cnx.commit()
         pbar()
 
