@@ -93,13 +93,15 @@ with alive_bar(len(r.json()["networks"])) as pbar:
             # restriction status
             restriction = root.find("./ns:Network", namespaces=namespace).attrib["restrictedStatus"]
             open = True if restriction in ['open', 'partial'] else False
-            stationxml_result = True if doi_xml == net["doi"] and license_result == open else False
+            stationxml_result = True if doi_xml == net["doi"] and (license is not None) == open else False
             stationxml_comment = ""
             if doi_xml != net["doi"]:
                 stationxml_comment += "StationXML and FDSN DOIs mismatch, "
-            if license_result != open:
+            if (license is not None) != open:
                 stationxml_comment += "StationXML and FDSN restriction status mismatch, "
             stationxml_comment = stationxml_comment[:-2] if stationxml_comment else None
+        else:
+            stationxml_comment = "No StationXML found"
 
         # update database and commit changes for network net
         query = "UPDATE networks_tests SET page_result = %s, license = %s, publisher = %s, datacenter = %s, stationxml_result = %s, stationxml_comment = %s WHERE test_time = %s AND name = %s;"
