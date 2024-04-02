@@ -6,6 +6,7 @@ CREATE TABLE networks_tests (
     name VARCHAR(500) NOT NULL,
     code VARCHAR(10) NOT NULL,
     startdate DATE NOT NULL,
+    enddate DATE,
     doi_result BOOLEAN NOT NULL,
     doi_comment VARCHAR(500),
     page_result BOOLEAN,
