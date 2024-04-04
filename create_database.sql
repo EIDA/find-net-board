@@ -30,6 +30,7 @@ CREATE TABLE routing (
     startdate DATE NOT NULL,
     datacenter VARCHAR(30) NOT NULL,
     priority INT,
+    source ENUM('EIDA', 'FDSN'),
     PRIMARY KEY (code, startdate, datacenter),
     FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
     FOREIGN KEY (datacenter) REFERENCES datacenters(name)
