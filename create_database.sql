@@ -1,26 +1,7 @@
-CREATE DATABASE netstests;
-USE netstests;
+CREATE DATABASE networks_tests;
+USE networks_tests;
 
-CREATE TABLE networks_tests (
-    test_time TIMESTAMP NOT NULL,
-    name VARCHAR(500) NOT NULL,
-    code VARCHAR(10) NOT NULL,
-    startdate DATE NOT NULL,
-    enddate DATE,
-    doi VARCHAR(100),
-    page_result BOOLEAN,
-    license VARCHAR(500),
-    publisher VARCHAR(300),
-    datacenter VARCHAR(30),
-    stationxml_result BOOLEAN,
-    stationxml_comment VARCHAR(300),
-    PRIMARY KEY (test_time, name)
-);
-
-
-/* PROPOSED MODEL
-CREATE TABLE fdsn_networks (
-    name VARCHAR(500) NOT NULL,
+CREATE TABLE networks (
     code VARCHAR(10) NOT NULL,
     startdate DATE NOT NULL,
     enddate DATE,
@@ -28,21 +9,40 @@ CREATE TABLE fdsn_networks (
     PRIMARY KEY (code, startdate)
 );
 
-CREATE TABLE fdsn_datacenters (
+CREATE TABLE datacite (
+    code VARCHAR(10) NOT NULL,
+    startdate DATE NOT NULL,
+    licenses VARCHAR(500),
+    page VARCHAR(300),
+    publisher VARCHAR(300),
+    PRIMARY KEY (code, startdate),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate)
+);
+
+CREATE TABLE datacenters (
+    name VARCHAR(30) NOT NULL,
+    station_url VARCHAR(300),
+    PRIMARY KEY (name)
+);
+
+CREATE TABLE routing (
+    code VARCHAR(10) NOT NULL,
+    startdate DATE NOT NULL,
     datacenter VARCHAR(30) NOT NULL,
-    network VARCHAR(10) NOT NULL,
-    starttime TIMESTAMP NOT NULL,
-    endtime TIMESTAMP,
-    PRIMARY KEY (network, starttime)
+    priority INT,
+    PRIMARY KEY (code, startdate, datacenter),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
+    FOREIGN KEY (datacenter) REFERENCES datacenters(name)
 );
 
 CREATE TABLE stationxml (
-    network VARCHAR(10) NOT NULL,
-    starttime TIMESTAMP NOT NULL,
+    code VARCHAR(10) NOT NULL,
+    startdate DATE NOT NULL,
+    enddate DATE,
     doi VARCHAR(100),
     restriction VARCHAR(50),
-    PRIMARY KEY (network, starttime),
-    FOREIGN KEY (network, starttime) REFERENCES fdsn_datacenters(network, starttime)
+    PRIMARY KEY (code, startdate),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
 );
 
 CREATE TABLE tests (
@@ -50,13 +50,10 @@ CREATE TABLE tests (
     code VARCHAR(10) NOT NULL,
     startdate DATE NOT NULL,
     doi VARCHAR(100),
-    page_result BOOLEAN,
-    license VARCHAR(500),
-    publisher VARCHAR(300),
-    datacenter VARCHAR(30),
-    stationxml_doi BOOLEAN,
-    stationxml_restriction BOOLEAN,
-    PRIMARY KEY (test_time, code, startdate)
-    FOREIGN KEY (code, startdate) REFERENCES fdsn_networks(code, startdate)
+    page_works BOOLEAN,
+    has_license BOOLEAN,
+    xml_doi_match BOOLEAN,
+    xml_restriction_match BOOLEAN,
+    PRIMARY KEY (test_time, code, startdate),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
 );
-*/
