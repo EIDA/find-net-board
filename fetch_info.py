@@ -133,7 +133,7 @@ def update_stationxml_table(net, datacenter):
     end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
     url = datacenters_urls[datacenter]
     try:
-        r = requests.get("https://"+url+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
+        r = requests.get("https://"+str(url)+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
         root = ET.fromstring(r.text)
     except:
         return
