@@ -39,11 +39,10 @@ CREATE TABLE routing (
 CREATE TABLE stationxml (
     code VARCHAR(10) NOT NULL,
     startdate DATE NOT NULL,
-    enddate DATE,
     doi VARCHAR(100),
     restriction VARCHAR(50),
     PRIMARY KEY (code, startdate),
-    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate)
 );
 
 CREATE TABLE tests (
@@ -56,5 +55,5 @@ CREATE TABLE tests (
     xml_doi_match BOOLEAN,
     xml_restriction_match BOOLEAN,
     PRIMARY KEY (test_time, code, startdate),
-    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate),
+    FOREIGN KEY (code, startdate) REFERENCES networks(code, startdate)
 );
