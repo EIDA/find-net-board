@@ -190,3 +190,6 @@ if __name__ == "__main__":
     datacenters_datasets, datacenters_urls = get_FDSN_datacenters()
     eida_routing = get_EIDA_routing()
     process_networks()
+
+    cursor.close()
+    cnx.close()
