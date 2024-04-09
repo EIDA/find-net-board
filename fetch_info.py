@@ -35,7 +35,7 @@ def get_FDSN_datacenters():
                 for s in r["services"]:
                     if s["name"] == "fdsnws-station-1":
                         station_url = s["url"]
-        datacenters_urls[dc["name"]] = urlparse(station_url).netloc
+        datacenters_urls[dc["name"]] = urlparse(station_url).netloc if station_url is not None else ''
         query = "INSERT INTO datacenters (name, station_url) VALUES (%s, %s) \
         ON DUPLICATE KEY UPDATE station_url = VALUES(station_url);"
         cursor.execute(query, (dc["name"], station_url))
@@ -133,7 +133,7 @@ def update_stationxml_table(net, datacenter):
     end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
     url = datacenters_urls[datacenter]
     try:
-        r = requests.get("https://"+str(url)+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
+        r = requests.get("https://"+url+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
         root = ET.fromstring(r.text)
     except:
         return
