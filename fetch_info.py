@@ -135,7 +135,7 @@ def update_stationxml_table(net, datacenter):
     try:
         r = requests.get("https://"+url+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
         root = ET.fromstring(r.text)
-    except:
+    except Exception:
         return
     namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
     networks = root.findall("./ns:Network", namespaces=namespace)
