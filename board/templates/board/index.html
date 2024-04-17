@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'board/style.css' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Networks Tests</title>
+</head>
+<body>
+<div>
+    <h1>Latest Tests</h1>
+    {% if latest_tests %}
+    <table>
+        <thead>
+            <tr>
+                <th>Test Time</th>
+                <th>Network</th>
+                <th>Start Date</th>
+                <th>DOI</th>
+                <th>Page</th>
+                <th>License</th>
+                <th>StationXML DOI</th>
+                <th>StationXML Restriction</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for test in latest_tests %}
+            <tr>
+                <td>{{ test.test_time }}</td>
+                <td>{{ test.network.code }}</td>
+                <td>{{ test.network.startdate }}</td>
+                <td>
+                    {% if test.doi %}
+                        <a href="https://doi.org/{{ test.doi }}">{{ test.doi }}</a>
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.page_works is not None %}
+                        {% if test.page_works %}
+                            ✅
+                        {% else %}
+                            ❌
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.has_license is not None %}
+                        {% if test.has_license %}
+                            ✅
+                        {% else %}
+                            ❌
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.xml_doi_match is not None %}
+                        {% if test.xml_doi_match %}
+                            ✅
+                        {% else %}
+                            ❌
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.xml_restriction_match is not None %}
+                        {% if test.xml_restriction_match %}
+                            ✅
+                        {% else %}
+                            ❌
+                        {% endif %}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No tests have been carried out!</p>
+    {% endif %}
+</div>
+</body>
+</html>

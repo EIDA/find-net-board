@@ -1,0 +1,21 @@
+body {
+  margin: 50px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th, td {
+  border: 1px solid #dddddd;
+  text-align: center;
+  padding: 8px;
+}
+tr:nth-child(even) {
+  background-color: #f5f5f5;
+}
+.true {
+  color: green;
+}
+.false {
+  color: red;
+}

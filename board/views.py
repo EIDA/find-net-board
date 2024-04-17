@@ -1,6 +1,8 @@
 from django.shortcuts import render
-from django.http import HttpResponse
 
+from .models import Test
 
 def index(request):
-    return HttpResponse("Hello, world. You're at the board index.")
+    latest_tests = Test.objects.order_by("-test_time")[:100]
+    context = {"latest_tests": latest_tests}
+    return render(request, "board/index.html", context)
