@@ -78,8 +78,8 @@ DATABASES = {
     'default': {
         'ENGINE': 'mysql.connector.django',
         'NAME': 'networks_tests',
-        "USER": "root",
-        "PASSWORD": "password",
+        "USER": "netstests",
+        "PASSWORD": "netstests",
         "HOST": "127.0.0.1",
     }
 }

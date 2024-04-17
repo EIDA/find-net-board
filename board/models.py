@@ -4,8 +4,8 @@ from django.db import models
 class Network(models.Model):
     code = models.CharField(max_length=10, null=False)
     startdate = models.DateField(null=False)
-    enddate = models.DateField(null=True)
-    doi = models.CharField(max_length=100, null=True)
+    enddate = models.DateField(null=True, blank=True)
+    doi = models.CharField(max_length=100, null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -18,9 +18,9 @@ class Network(models.Model):
 
 class Datacite(models.Model):
     network = models.ForeignKey(Network, on_delete=models.CASCADE)
-    licenses = models.CharField(max_length=500, null=True)
-    page = models.CharField(max_length=300, null=True)
-    publisher = models.CharField(max_length=300, null=True)
+    licenses = models.CharField(max_length=500, null=True, blank=True)
+    page = models.CharField(max_length=300, null=True, blank=True)
+    publisher = models.CharField(max_length=300, null=True, blank=True)
 
     def __str__(self):
         return f"({self.network.code}, {self.network.startdate}, {self.licenses}, {self.page}, {self.publisher})"
@@ -28,7 +28,7 @@ class Datacite(models.Model):
 
 class Datacenter(models.Model):
     name = models.CharField(max_length=30, primary_key=True)
-    station_url = models.CharField(max_length=300, null=True)
+    station_url = models.CharField(max_length=300, null=True, blank=True)
 
     def __str__(self):
         return f"({self.name}, {self.station_url})"
@@ -37,8 +37,8 @@ class Datacenter(models.Model):
 class Routing(models.Model):
     network = models.ForeignKey(Network, on_delete=models.CASCADE)
     datacenter = models.ForeignKey(Datacenter, on_delete=models.CASCADE)
-    priority = models.IntegerField(null=True)
-    source = models.CharField(max_length=4, choices=[('EIDA', 'EIDA'), ('FDSN', 'FDSN')], null=True)
+    priority = models.IntegerField(null=True, blank=True)
+    source = models.CharField(max_length=4, choices=[('EIDA', 'EIDA'), ('FDSN', 'FDSN')], null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -51,8 +51,8 @@ class Routing(models.Model):
 
 class Stationxml(models.Model):
     network = models.ForeignKey(Network, on_delete=models.CASCADE)
-    doi = models.CharField(max_length=100, null=True)
-    restriction = models.CharField(max_length=50, null=True)
+    doi = models.CharField(max_length=100, null=True, blank=True)
+    restriction = models.CharField(max_length=50, null=True, blank=True)
 
     def __str__(self):
         return f"({self.network.code}, {self.network.startdate}, {self.doi}, {self.restriction})"
@@ -61,11 +61,11 @@ class Stationxml(models.Model):
 class Test(models.Model):
     test_time = models.DateTimeField(null=False)
     network = models.ForeignKey(Network, on_delete=models.CASCADE)
-    doi = models.CharField(max_length=100, null=True)
-    page_works = models.BooleanField(null=True)
-    has_license = models.BooleanField(null=True)
-    xml_doi_match = models.BooleanField(null=True)
-    xml_restriction_match = models.BooleanField(null=True)
+    doi = models.CharField(max_length=100, null=True, blank=True)
+    page_works = models.BooleanField(null=True, blank=True)
+    has_license = models.BooleanField(null=True, blank=True)
+    xml_doi_match = models.BooleanField(null=True, blank=True)
+    xml_restriction_match = models.BooleanField(null=True, blank=True)
 
     class Meta:
         constraints = [
