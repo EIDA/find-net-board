@@ -8,10 +8,13 @@
     <title>Networks Tests</title>
 </head>
 <body>
-<div>
-    <h1>Latest Tests</h1>
-    {% if latest_tests %}
-    <table>
+    <h1>Tests</h1>
+    <form id="search-form">
+        <input type="text" id="search-input" placeholder="Network code">
+        <button type="submit">Search</button>
+    </form>
+    {% if tests %}
+    <table id="tests-table">
         <thead>
             <tr>
                 <th>Test Time</th>
@@ -25,8 +28,8 @@
             </tr>
         </thead>
         <tbody>
-            {% for test in latest_tests %}
-            <tr>
+            {% for test in tests %}
+            <tr data-network-code="{{ test.network.code }}">
                 <td>{{ test.test_time }}</td>
                 <td>{{ test.network.code }}</td>
                 <td>{{ test.network.startdate }}</td>
@@ -88,6 +91,21 @@
     {% else %}
     <p>No tests have been carried out!</p>
     {% endif %}
-</div>
+
+<script>
+    document.getElementById('search-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        let searchTerm = document.getElementById('search-input').value;
+        let rows = document.querySelectorAll('#tests-table tbody tr');
+        rows.forEach(function(row) {
+            let networkCode = row.getAttribute('data-network-code');
+            if (networkCode.toLowerCase() == searchTerm.toLowerCase()) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+</script>
 </body>
 </html>

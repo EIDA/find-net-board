@@ -1,0 +1,15 @@
+{% extends "admin/index.html" %}
+
+{% block content %}
+    {{ block.super }}
+    <div style="margin-top: 20px;">
+        <button id="custom-action-button" class="button">Update DB from Sources</button>
+    </div>
+    <script>
+        document.getElementById('custom-action-button').addEventListener('click', function() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/board/admin/update_db_from_sources/', true);
+            xhr.send();
+        });
+    </script>
+{% endblock %}
