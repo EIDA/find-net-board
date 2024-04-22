@@ -12,7 +12,7 @@ class DataciteAdmin(admin.ModelAdmin):
     search_fields = ['network__code']
 
 class RoutingAdmin(admin.ModelAdmin):
-    search_fields = ['network__code']
+    search_fields = ['datacenter__name', 'network__code']
 
 class StationxmlAdmin(admin.ModelAdmin):
     search_fields = ['network__code']

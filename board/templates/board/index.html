@@ -10,7 +10,12 @@
 <body>
     <h1>Tests</h1>
     <form id="search-form">
-        <input type="text" id="search-input" placeholder="Network code">
+        <label for="search-network">Network:</label>
+        <input type="text" id="search-network" placeholder="Enter Network Code">
+        <label for="start-date">Start Date:</label>
+        <input type="date" id="start-date">
+        <label for="end-date">End Date:</label>
+        <input type="date" id="end-date">
         <button type="submit">Search</button>
     </form>
     {% if tests %}
@@ -30,9 +35,9 @@
         <tbody>
             {% for test in tests %}
             <tr data-network-code="{{ test.network.code }}">
-                <td>{{ test.test_time }}</td>
+                <td>{{ test.test_time | date:"d-m-Y" }}</td>
                 <td>{{ test.network.code }}</td>
-                <td>{{ test.network.startdate }}</td>
+                <td>{{ test.network.startdate | date:"d-m-Y" }}</td>
                 <td>
                     {% if test.doi %}
                         <a href="https://doi.org/{{ test.doi }}">{{ test.doi }}</a>
@@ -95,11 +100,25 @@
 <script>
     document.getElementById('search-form').addEventListener('submit', function(event) {
         event.preventDefault();
-        let searchTerm = document.getElementById('search-input').value;
+        let networkCode = document.getElementById('search-network').value.toLowerCase();
+        let startDate = document.getElementById('start-date').value;
+        let endDate = document.getElementById('end-date').value;
+
         let rows = document.querySelectorAll('#tests-table tbody tr');
         rows.forEach(function(row) {
-            let networkCode = row.getAttribute('data-network-code');
-            if (networkCode.toLowerCase() == searchTerm.toLowerCase()) {
+            let rowNetworkCode = row.getAttribute('data-network-code').toLowerCase();
+            let testTime = row.querySelector('td:first-child').innerText;
+            let dateComponents = testTime.split("-");
+            let year = parseInt(dateComponents[2]);
+            let month = parseInt(dateComponents[1]) - 1;
+            let day = parseInt(dateComponents[0]);
+            let dateObject = new Date(year, month, day);
+
+            let meetsNetworkCode = !networkCode || rowNetworkCode.includes(networkCode);
+            let meetsStartDate = !startDate || new Date(startDate) <= dateObject;
+            let meetsEndDate = !endDate || dateObject <= new Date(endDate);
+
+            if (meetsNetworkCode && meetsStartDate && meetsEndDate) {
                 row.style.display = '';
             } else {
                 row.style.display = 'none';

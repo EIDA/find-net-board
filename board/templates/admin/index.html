@@ -3,23 +3,45 @@
 {% block content %}
     {{ block.super }}
     <div style="margin-top: 20px;">
-        <button id="custom-action-button" class="button">Update DB from Sources</button>
-        <div id="message" style="margin-top: 10px;"></div>
+        <button id="update-button" class="button">Update DB from Sources</button>
+        <div id="update-message" style="margin-top: 10px;"></div>
+    </div>
+    <div style="margin-top: 20px;">
+        <button id="tests-button" class="button">Run Tests</button>
+        <div id="tests-message" style="margin-top: 10px;"></div>
     </div>
     <script>
-        document.getElementById('custom-action-button').addEventListener('click', function() {
-            document.getElementById('message').innerText = '';
+        document.getElementById('update-button').addEventListener('click', function() {
+            document.getElementById('update-message').innerText = '';
 
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/board/admin/update_db_from_sources/', true);
             xhr.onload = function() {
                 if (xhr.status === 200) {
-                    document.getElementById('message').innerText = 'DB successfully updated from sources!';
-                    document.getElementById('message').style.color = 'green';
+                    document.getElementById('update-message').innerText = 'DB successfully updated from sources!';
+                    document.getElementById('update-message').style.color = 'green';
                 } else {
                     console.log(xhr.responseText);
-                    document.getElementById('message').innerText = 'DB update was not completed successfully! See console or server logs for more details';
-                    document.getElementById('message').style.color = 'red';
+                    document.getElementById('update-message').innerText = 'DB update was not completed successfully! See console or server logs for more details';
+                    document.getElementById('update-message').style.color = 'red';
+                }
+            };
+            xhr.send();
+        });
+
+        document.getElementById('tests-button').addEventListener('click', function() {
+            document.getElementById('tests-message').innerText = '';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/board/admin/run_tests/', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    document.getElementById('tests-message').innerText = 'Tests ran successfully!';
+                    document.getElementById('tests-message').style.color = 'green';
+                } else {
+                    console.log(xhr.responseText);
+                    document.getElementById('tests-message').innerText = 'Tests were not completed successfully! See console or server logs for more details';
+                    document.getElementById('tests-message').style.color = 'red';
                 }
             };
             xhr.send();
