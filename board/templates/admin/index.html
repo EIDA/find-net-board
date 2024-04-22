@@ -4,11 +4,24 @@
     {{ block.super }}
     <div style="margin-top: 20px;">
         <button id="custom-action-button" class="button">Update DB from Sources</button>
+        <div id="message" style="margin-top: 10px;"></div>
     </div>
     <script>
         document.getElementById('custom-action-button').addEventListener('click', function() {
+            document.getElementById('message').innerText = '';
+
             var xhr = new XMLHttpRequest();
             xhr.open('GET', '/board/admin/update_db_from_sources/', true);
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    document.getElementById('message').innerText = 'DB successfully updated from sources!';
+                    document.getElementById('message').style.color = 'green';
+                } else {
+                    console.log(xhr.responseText);
+                    document.getElementById('message').innerText = 'DB update was not completed successfully! See console or server logs for more details';
+                    document.getElementById('message').style.color = 'red';
+                }
+            };
             xhr.send();
         });
     </script>
