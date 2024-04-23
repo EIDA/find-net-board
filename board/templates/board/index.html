@@ -8,7 +8,7 @@
     <title>Networks Tests</title>
 </head>
 <body>
-    <h1>Tests</h1>
+    <h1>Latest Tests</h1>
     <form id="search-form">
         <label for="search-network">Network:</label>
         <input type="text" id="search-network" placeholder="Enter Network Code">
@@ -35,9 +35,9 @@
         <tbody>
             {% for test in tests %}
             <tr data-network-code="{{ test.network.code }}">
-                <td>{{ test.test_time | date:"d-m-Y" }}</td>
+                <td>{{ test.test_time }}</td>
                 <td>{{ test.network.code }}</td>
-                <td>{{ test.network.startdate | date:"d-m-Y" }}</td>
+                <td>{{ test.network.startdate | date:"Y-m-d" }}</td>
                 <td>
                     {% if test.doi %}
                         <a href="https://doi.org/{{ test.doi }}">{{ test.doi }}</a>
@@ -103,27 +103,41 @@
         let networkCode = document.getElementById('search-network').value.toLowerCase();
         let startDate = document.getElementById('start-date').value;
         let endDate = document.getElementById('end-date').value;
+        let options = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        };
 
-        let rows = document.querySelectorAll('#tests-table tbody tr');
-        rows.forEach(function(row) {
-            let rowNetworkCode = row.getAttribute('data-network-code').toLowerCase();
-            let testTime = row.querySelector('td:first-child').innerText;
-            let dateComponents = testTime.split("-");
-            let year = parseInt(dateComponents[2]);
-            let month = parseInt(dateComponents[1]) - 1;
-            let day = parseInt(dateComponents[0]);
-            let dateObject = new Date(year, month, day);
+        fetch('/board/search_tests/?network=' + networkCode + '&start=' + startDate + '&end=' + endDate)
+            .then(response => response.json())
+            .then(data => {
+                // Clear existing table rows
+                let tableBody = document.querySelector('#tests-table tbody');
+                tableBody.innerHTML = '';
 
-            let meetsNetworkCode = !networkCode || rowNetworkCode.includes(networkCode);
-            let meetsStartDate = !startDate || new Date(startDate) <= dateObject;
-            let meetsEndDate = !endDate || dateObject <= new Date(endDate);
-
-            if (meetsNetworkCode && meetsStartDate && meetsEndDate) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
-            }
-        });
+                // Populate table with new data
+                data.tests.forEach(test => {
+                    let row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${(new Date(test.test_time)).toLocaleString(undefined, options)}</td>
+                        <td>${test.network_code}</td>
+                        <td>${test.start_date}</td>
+                        <td>${test.doi ? `<a href="https://doi.org/${test.doi}">${test.doi}</a>` : '-'}</td>
+                        <td>${test.page_works !== null ? (test.page_works ? '✅' : '❌') : '-'}</td>
+                        <td>${test.has_license !== null ? (test.has_license ? '✅' : '❌') : '-'}</td>
+                        <td>${test.xml_doi_match !== null ? (test.xml_doi_match ? '✅' : '❌') : '-'}</td>
+                        <td>${test.xml_restriction_match !== null ? (test.xml_restriction_match ? '✅' : '❌') : '-'}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
     });
 </script>
 </body>

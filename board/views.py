@@ -1,7 +1,8 @@
 from django.shortcuts import render
 from django.contrib.auth.decorators import user_passes_test
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
+from django.db.models import Max
 
 from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
 
@@ -15,11 +16,43 @@ import traceback
 
 logger = logging.getLogger(__name__)
 
-# main home page view
+# main home page view with latest tests
 def index(request):
-    tests = Test.objects.order_by("-test_time")
+    latest_test_time = Test.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
+    tests = Test.objects.filter(test_time=latest_test_time).order_by("-test_time")
     context = {"tests": tests}
     return render(request, "board/index.html", context)
+
+
+# below view to retrieve tests that match user request
+def search_tests(request):
+    network_code = request.GET.get('network', None)
+    start_date = request.GET.get('start', None)
+    end_date = request.GET.get('end', None)
+
+    tests = Test.objects
+
+    if network_code:
+        tests = tests.filter(network__code=network_code)
+
+    if start_date:
+        tests = tests.filter(test_time__gte=start_date)
+
+    if end_date:
+        tests = tests.filter(test_time__lte=end_date)
+
+    tests_data = [{
+        'test_time': test.test_time,
+        'network_code': test.network.code,
+        'start_date': test.network.startdate,
+        'doi': test.doi,
+        'page_works': test.page_works,
+        'has_license': test.has_license,
+        'xml_doi_match': test.xml_doi_match,
+        'xml_restriction_match': test.xml_restriction_match
+    } for test in tests]
+
+    return JsonResponse({'tests': tests_data})
 
 
 # function to tell if user is admin
