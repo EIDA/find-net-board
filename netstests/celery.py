@@ -1,5 +1,5 @@
 import os
-
+from datetime import timedelta
 from celery import Celery
 
 
@@ -19,8 +19,8 @@ app.autodiscover_tasks()
 
 # Define periodic tasks
 app.conf.beat_schedule = {
-    'learn celery': {
-        'task': 'board.tasks.learn',
-        'schedule': 3.0,
+    'update db from sources every 14 days': {
+        'task': 'board.tasks.update_from_sources',
+        'schedule': timedelta(minutes=1),
     },
 }
