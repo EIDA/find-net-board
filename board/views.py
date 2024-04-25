@@ -30,7 +30,7 @@ def search_tests(request):
     start_date = request.GET.get('start', None)
     end_date = request.GET.get('end', None)
 
-    tests = Test.objects
+    tests = Test.objects.all()
 
     if network_code:
         tests = tests.filter(network__code=network_code)
@@ -129,7 +129,7 @@ def get_FDSN_datacenters():
     return datacenters_datasets, datacenters_urls
 
 def get_EIDA_routing():
-    logging.info("Getting EIDA routing information")
+    logger.info("Getting EIDA routing information")
     r = requests.get("https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station")
     return r.json()
 
@@ -246,7 +246,7 @@ def update_stationxml_table(net, url):
     Stationxml.objects.update_or_create(network=network_db, defaults={"doi": doi_xml, "restriction": restriction})
 
 def process_networks(datacenters_datasets, datacenters_urls, eida_routing):
-    logging.info("Getting all networks from FDSN and updating database")
+    logger.info("Getting all networks from FDSN and updating database")
     r = requests.get("https://www.fdsn.org/ws/networks/1/query")
     with alive_bar(len(r.json()["networks"])) as pbar:
         for net in r.json()["networks"]:
