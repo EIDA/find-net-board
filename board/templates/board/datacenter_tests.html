@@ -9,7 +9,14 @@
 </head>
 <body>
     <h1>{{ datacenter_name }} Tests</h1>
-    <table>
+    <form id="search-form">
+        <label for="start-date">Start Date:</label>
+        <input type="date" id="start-date">
+        <label for="end-date">End Date:</label>
+        <input type="date" id="end-date">
+        <button type="submit">Search</button>
+    </form>
+    <table id="tests-table">
         <thead>
             <tr>
                 <th>Test Time</th>
@@ -83,5 +90,48 @@
             {% endfor %}
         </tbody>
     </table>
+
+<script>
+    document.getElementById('search-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        let startDate = document.getElementById('start-date').value;
+        let endDate = document.getElementById('end-date').value;
+        let options = {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+        };
+
+        fetch('/board/search_tests/?datacenter={{ datacenter_name }}' + '&start=' + startDate + '&end=' + endDate)
+            .then(response => response.json())
+            .then(data => {
+                // Clear existing table rows
+                let tableBody = document.querySelector('#tests-table tbody');
+                tableBody.innerHTML = '';
+
+                // Populate table with new data
+                data.tests.forEach(test => {
+                    let row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${(new Date(test.test_time)).toLocaleString(undefined, options)}</td>
+                        <td>${test.network_code}</td>
+                        <td>${test.start_date}</td>
+                        <td>${test.doi ? `<a href="https://doi.org/${test.doi}">${test.doi}</a>` : '-'}</td>
+                        <td>${test.page_works !== null ? (test.page_works ? '✅' : '❌') : '-'}</td>
+                        <td>${test.has_license !== null ? (test.has_license ? '✅' : '❌') : '-'}</td>
+                        <td>${test.xml_doi_match !== null ? (test.xml_doi_match ? '✅' : '❌') : '-'}</td>
+                        <td>${test.xml_restriction_match !== null ? (test.xml_restriction_match ? '✅' : '❌') : '-'}</td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+    });
+</script>
 </body>
 </html>

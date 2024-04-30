@@ -31,10 +31,11 @@ def index(request):
 # below view to retrieve tests that match user request
 def search_tests(request):
     network_code = request.GET.get('network', None)
+    datacenter = request.GET.get('datacenter', None)
     start_date = request.GET.get('start', None)
     end_date = request.GET.get('end', None)
 
-    tests = Test.objects.all()
+    tests = Test.objects.order_by('-test_time').all()
 
     if network_code:
         tests = tests.filter(network__code=network_code)
@@ -48,17 +49,18 @@ def search_tests(request):
     tests_data = []
     for test in tests:
         routing = Routing.objects.filter(network=test.network).first()
-        tests_data.append({
-            'test_time': test.test_time,
-            'datacenter': routing.datacenter.name if routing is not None else '-',
-            'network_code': test.network.code,
-            'start_date': test.network.startdate,
-            'doi': test.doi,
-            'page_works': test.page_works,
-            'has_license': test.has_license,
-            'xml_doi_match': test.xml_doi_match,
-            'xml_restriction_match': test.xml_restriction_match
-        })
+        if datacenter is None or (routing is not None and routing.datacenter.name.upper() == datacenter.upper()):
+            tests_data.append({
+                'test_time': test.test_time,
+                'datacenter': routing.datacenter.name if routing is not None else '-',
+                'network_code': test.network.code,
+                'start_date': test.network.startdate,
+                'doi': test.doi,
+                'page_works': test.page_works,
+                'has_license': test.has_license,
+                'xml_doi_match': test.xml_doi_match,
+                'xml_restriction_match': test.xml_restriction_match
+            })
 
     return JsonResponse({'tests': tests_data})
 
