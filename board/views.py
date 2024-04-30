@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import user_passes_test
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from django.db.models import Max
+from django.db.models import Max, Count, Case, When, FloatField, F
 
 from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
 
@@ -61,6 +61,32 @@ def search_tests(request):
         })
 
     return JsonResponse({'tests': tests_data})
+
+
+# below view to show available test runs
+def test_runs(request):
+    unique_test_times = Test.objects.values('test_time').annotate(
+        count=Count('test_time'),
+        true_page_count=Count(
+            Case(When(page_works=True, then=1), output_field=FloatField())
+        ),
+        true_license_count=Count(
+            Case(When(has_license=True, then=1), output_field=FloatField())
+        ),
+        true_xml_doi_match_count=Count(
+            Case(When(xml_doi_match=True, then=1), output_field=FloatField())
+        ),
+        true_xml_restriction_match_count=Count(
+            Case(When(xml_restriction_match=True, then=1), output_field=FloatField())
+        )
+    ).annotate(
+        true_page_percentage=100 * (F('true_page_count') / F('count')),
+        true_license_percentage=100 * (F('true_license_count') / F('count')),
+        true_xml_doi_match_percentage=100 * (F('true_xml_doi_match_count') / F('count')),
+        true_xml_restriction_match_percentage=100 * (F('true_xml_restriction_match_count') / F('count'))
+    ).order_by('-test_time')
+
+    return render(request, "board/test_runs.html", {'unique_test_times': list(unique_test_times)})
 
 
 # function to tell if user is admin

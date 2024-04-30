@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'board/style.css' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Runs</title>
+</head>
+<body>
+    <h1>Available Test Runs</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Test Run Time</th>
+                <th>Networks (#)</th>
+                <th>Page Test (%)</th>
+                <th>License Test (%)</th>
+                <th>StationXML DOI Test (%)</th>
+                <th>StationXML Restriction Test (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for test_time in unique_test_times %}
+            <tr>
+                <td>{{ test_time.test_time }}</td>
+                <td>{{ test_time.count }}</td>
+                <td>{{ test_time.true_page_percentage|floatformat:2 }}</td>
+                <td>{{ test_time.true_license_percentage|floatformat:2 }}</td>
+                <td>{{ test_time.true_xml_doi_match_percentage|floatformat:2 }}</td>
+                <td>{{ test_time.true_xml_restriction_match_percentage|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
