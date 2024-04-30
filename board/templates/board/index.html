@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     {% load static %}
+    {% load djutils %}
     <link rel="stylesheet" href="{% static 'board/style.css' %}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -23,6 +24,7 @@
         <thead>
             <tr>
                 <th>Test Time</th>
+                <th>Datacenter</th>
                 <th>Network</th>
                 <th>Start Date</th>
                 <th>DOI</th>
@@ -36,6 +38,7 @@
             {% for test in tests %}
             <tr data-network-code="{{ test.network.code }}">
                 <td>{{ test.test_time }}</td>
+                <td>{{ routing_data|get_value_from_dict:test.id }}</td>
                 <td>{{ test.network.code }}</td>
                 <td>{{ test.network.startdate | date:"Y-m-d" }}</td>
                 <td>
@@ -124,6 +127,7 @@
                     let row = document.createElement('tr');
                     row.innerHTML = `
                         <td>${(new Date(test.test_time)).toLocaleString(undefined, options)}</td>
+                        <td>${test.datacenter}</td>
                         <td>${test.network_code}</td>
                         <td>${test.start_date}</td>
                         <td>${test.doi ? `<a href="https://doi.org/${test.doi}">${test.doi}</a>` : '-'}</td>

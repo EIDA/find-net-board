@@ -19,8 +19,12 @@ logger = logging.getLogger(__name__)
 # main home page view with latest tests
 def index(request):
     latest_test_time = Test.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
-    tests = Test.objects.filter(test_time=latest_test_time).order_by("-test_time")
-    context = {"tests": tests}
+    tests = Test.objects.filter(test_time=latest_test_time)
+    routing_data = {}
+    for test in tests:
+        routing = Routing.objects.filter(network=test.network).first()
+        routing_data[test.id] = routing.datacenter.name if routing is not None else '-'
+    context = {'tests': tests, 'routing_data': routing_data}
     return render(request, "board/index.html", context)
 
 
@@ -41,16 +45,20 @@ def search_tests(request):
     if end_date:
         tests = tests.filter(test_time__lte=end_date)
 
-    tests_data = [{
-        'test_time': test.test_time,
-        'network_code': test.network.code,
-        'start_date': test.network.startdate,
-        'doi': test.doi,
-        'page_works': test.page_works,
-        'has_license': test.has_license,
-        'xml_doi_match': test.xml_doi_match,
-        'xml_restriction_match': test.xml_restriction_match
-    } for test in tests]
+    tests_data = []
+    for test in tests:
+        routing = Routing.objects.filter(network=test.network).first()
+        tests_data.append({
+            'test_time': test.test_time,
+            'datacenter': routing.datacenter.name if routing is not None else '-',
+            'network_code': test.network.code,
+            'start_date': test.network.startdate,
+            'doi': test.doi,
+            'page_works': test.page_works,
+            'has_license': test.has_license,
+            'xml_doi_match': test.xml_doi_match,
+            'xml_restriction_match': test.xml_restriction_match
+        })
 
     return JsonResponse({'tests': tests_data})
 
