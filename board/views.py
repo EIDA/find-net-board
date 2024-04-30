@@ -89,6 +89,35 @@ def test_runs(request):
     return render(request, "board/test_runs.html", {'unique_test_times': list(unique_test_times)})
 
 
+# below view to show tests of specific datacenter
+def datacenter_tests(request, datacenter_name):
+    try:
+        datacenter = Datacenter.objects.get(name=datacenter_name)
+    except Datacenter.DoesNotExist:
+        return HttpResponse("<h1>Not Found</h1>Datacenter does not exist!", status=404)
+
+    latest_test_time = Test.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
+    tests = Test.objects.filter(test_time=latest_test_time)
+
+    tests_data = []
+    for test in tests:
+        routing = Routing.objects.filter(network=test.network, datacenter=datacenter_name).first()
+        if routing is not None:
+            tests_data.append({
+                'test_time': test.test_time,
+                'network_code': test.network.code,
+                'network_startdate': test.network.startdate,
+                'doi': test.doi,
+                'page_works': test.page_works,
+                'has_license': test.has_license,
+                'xml_doi_match': test.xml_doi_match,
+                'xml_restriction_match': test.xml_restriction_match
+            })
+
+    context = {'datacenter_name': datacenter_name.upper(), 'tests': tests_data}
+    return render(request, "board/datacenter_tests.html", context)
+
+
 # function to tell if user is admin
 def is_admin(user):
     return user.is_authenticated and user.is_staff
