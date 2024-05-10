@@ -30,6 +30,7 @@ Follow the steps below to locally install the application:
   CREATE USER 'netstests'@'localhost' IDENTIFIED BY 'netstests';
   GRANT CREATE ON *.* TO `netstests`@`localhost`;
   GRANT SELECT, INSERT, UPDATE, DELETE, DROP, REFERENCES, ALTER ON `networks_tests`.* TO `netstests`@`localhost`;
+  GRANT ALL PRIVILEGES ON `test_networks_tests`.* TO `netstests`@`localhost`;
   exit
   ```
 
