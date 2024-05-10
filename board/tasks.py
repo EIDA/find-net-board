@@ -22,7 +22,8 @@ def update_and_run():
     for net in r.json()["networks"]:
         logger.debug(f"Progress {i}/{len(r.json()['networks'])}")
         update_networks_table(net)
-        update_datacite_table(net)
+        if net["doi"] != "":
+            update_datacite_table(net)
         datacenter = try_EIDA_routing(net, eida_routing, datacenters_urls)
         if not datacenter:
             datacenter = try_FDSN_routing(net, datacenters_datasets)
@@ -50,7 +51,7 @@ def update_and_run():
             except Exception:
                 page_works = False
             has_license = True if datacites[net][0] is not None else False
-        if net not in stationxml:
+        if net not in stationxml or net not in datacites:
             xml_doi_match, xml_restriction_match = None, None
         else:
             xml_doi_match = networks[net][1] == stationxml[net][0]

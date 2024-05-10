@@ -1,3 +1,12 @@
 from django.test import TestCase
 
-# Create your tests here.
+from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
+
+
+class TestModelTests(TestCase):
+    def explanatory_name(self):
+        """
+        explanation
+        """
+        # code
+        pass
