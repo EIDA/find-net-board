@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -78,10 +79,10 @@ WSGI_APPLICATION = 'netstests.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'mysql.connector.django',
-        'NAME': 'networks_tests',
-        "USER": "netstests",
-        "PASSWORD": "netstests",
-        "HOST": "127.0.0.1",
+        'NAME': os.getenv('DBNAME', 'networks_tests'),
+        'USER': os.getenv('DBUSER', 'netstests'),
+        'PASSWORD': os.getenv('DBPASSWORD', 'netstests'),
+        'HOST': os.getenv('DBHOST', '127.0.0.1'),
     }
 }
 
