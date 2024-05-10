@@ -66,3 +66,7 @@ Provided that the application is up and running:
 
 - Visit http://localhost:8000/board/ to view the board that presents the results of the tests.
   When the page loads, the last set of tests is shown. You can use the search form to view specific tests.
+
+- Visit http://localhost:8000/board/tests/ to view the available test runs.
+
+- Visit http://localhost:8000/board/datacenter/datacenter_name/ to view results of tests for networks of a specific datacenter (replace *datacenter_name* with the name of your datacenter as it appears in https://www.fdsn.org/datacenters/). You can use the search form to view tests within a specific time frame.
