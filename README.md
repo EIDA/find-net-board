@@ -24,7 +24,7 @@ Follow the steps below to locally install the application:
   ```bash
   mysql -u root -p
   ```
-  Execute the below commands in mysql shell
+  Execute the below commands in mysql shell:
   ```sql
   CREATE DATABASE networks_tests;
   CREATE USER 'netstests'@'localhost' IDENTIFIED BY 'netstests';
