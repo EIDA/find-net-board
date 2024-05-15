@@ -4,13 +4,50 @@ This is an application that tests and presents the consistency of networks metad
 
 ## Installation
 
-Follow the steps below to locally install the application:
+Clone current GitHub repository and enter project folder:
+```bash
+git clone https://github.com/EIDA/find-net-board.git
+cd find-net-board
+```
 
-- Clone current GitHub repository and enter project folder:
+For production see the recommended option using [Docker](https://www.docker.com/) below. For development purposes see the step by step installation.
+
+### With Docker containers (recommended)
+
+- Connect to your MySQL server to create the database and a user:
   ```bash
-  git clone https://github.com/EIDA/find-net-board.git
-  cd find-net-board
+  mysql -u root -p
   ```
+  Execute the below commands in mysql shell:
+  ```sql
+  CREATE DATABASE networks_tests;
+  CREATE USER 'netstests'@'DBHOST' IDENTIFIED BY 'netstests';
+  GRANT CREATE ON *.* TO `netstests`@`DBHOST`;
+  GRANT SELECT, INSERT, UPDATE, DELETE, DROP, REFERENCES, ALTER ON `networks_tests`.* TO `netstests`@`DBHOST`;
+  GRANT ALL PRIVILEGES ON `test_networks_tests`.* TO `netstests`@`DBHOST`;
+  exit
+  ```
+  **Note:** You need to replace `DBHOST` with the IP of your system as the Docker container, which will hold the application, will see it. Also, make sure you have configured your database to be accessible through this IP.
+
+- From within the project folder build the Docker image:
+  ```bash
+  docker build --network host -t networkstests .
+  ```
+  **Note:** Look in the [Dockerfile](https://github.com/EIDA/find-net-board/blob/main/Dockerfile) and make sure to use credentials for the new admin user that do not already exist. If you already have made an admin user (e.g. by having built the image again before) and do not want to make a new one, you can delete the command:
+  ```
+  RUN python manage.py shell -c "from django.contrib.auth.models import User; \
+    User.objects.create_superuser('admin', 'admin@example.com', 'adminpassword')"
+  ```
+  If this is the first time you install the application, you can ignore the above note.
+
+- Run the Docker container:
+  ```bash
+  docker run --network host -p 8000:8000 networkstests
+  ```
+
+### Step by step (ideal for development purposes)
+
+Follow the steps below from within project folder to locally install the application:
 
 - Install dependencies (recommended way using [Poetry](https://python-poetry.org/)):
   ```bash
