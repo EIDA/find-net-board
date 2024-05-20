@@ -14,20 +14,16 @@ For production see the recommended option using [Docker](https://www.docker.com/
 
 ### With Docker containers (recommended)
 
-- Connect to your MySQL server to create the database and a user:
+- Connect to your PostgreSQL server to create the database and a role:
   ```bash
-  mysql -u root -p
+  psql -U postgres -h localhost
   ```
-  Execute the below commands in mysql shell:
+  Execute the below commands in psql shell:
   ```sql
-  CREATE DATABASE networks_tests;
-  CREATE USER 'netstests'@'DBHOST' IDENTIFIED BY 'netstests';
-  GRANT CREATE ON *.* TO `netstests`@`DBHOST`;
-  GRANT SELECT, INSERT, UPDATE, DELETE, DROP, REFERENCES, ALTER ON `networks_tests`.* TO `netstests`@`DBHOST`;
-  GRANT ALL PRIVILEGES ON `test_networks_tests`.* TO `netstests`@`DBHOST`;
+  CREATE ROLE netstests WITH LOGIN PASSWORD 'netstests' CREATEDB;
+  CREATE DATABASE networks_tests OWNER netstests;
   exit
   ```
-  **Note:** You need to replace `DBHOST` with the IP of your system as the Docker container, which will hold the application, will see it. Also, make sure you have configured your database to be accessible through this IP.
 
 - From within the project folder build the Docker image:
   ```bash
@@ -57,17 +53,14 @@ Follow the steps below from within project folder to locally install the applica
   poetry install
   ```
 
-- Connect to your MySQL server to create the database and a user:
+- Connect to your PostgreSQL server to create the database and a role:
   ```bash
-  mysql -u root -p
+  psql -U postgres -h localhost
   ```
   Execute the below commands in mysql shell:
   ```sql
-  CREATE DATABASE networks_tests;
-  CREATE USER 'netstests'@'localhost' IDENTIFIED BY 'netstests';
-  GRANT CREATE ON *.* TO `netstests`@`localhost`;
-  GRANT SELECT, INSERT, UPDATE, DELETE, DROP, REFERENCES, ALTER ON `networks_tests`.* TO `netstests`@`localhost`;
-  GRANT ALL PRIVILEGES ON `test_networks_tests`.* TO `netstests`@`localhost`;
+  CREATE ROLE netstests WITH LOGIN PASSWORD 'netstests' CREATEDB;
+  CREATE DATABASE networks_tests OWNER netstests;
   exit
   ```
 

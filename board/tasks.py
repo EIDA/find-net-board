@@ -7,7 +7,7 @@ from datetime import datetime
 from django.utils import timezone
 import traceback
 
-from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
+from .models import Fdsn_registry, Consistency, Eida_routing, Datacenter, Datacite, Stationxml
 from .views import get_FDSN_datacenters, get_EIDA_routing, update_networks_table, update_datacite_table, try_EIDA_routing, try_FDSN_routing, update_stationxml_table, process_networks
 
 logger = logging.getLogger(__name__)

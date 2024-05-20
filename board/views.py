@@ -4,7 +4,7 @@ from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.db.models import Max, Count, Case, When, FloatField, F
 
-from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
+from .models import Fdsn_registry, Consistency, Eida_routing, Datacenter, Datacite, Stationxml
 
 import requests
 import logging

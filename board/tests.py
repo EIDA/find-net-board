@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.utils import timezone
 import requests
 
-from .models import Test, Network, Datacenter, Routing, Datacite, Stationxml
+from .models import Fdsn_registry, Consistency, Eida_routing, Datacenter, Datacite, Stationxml
 
 
 class TestModelTests(TestCase):

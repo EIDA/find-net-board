@@ -8,12 +8,12 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.10"
 requests = "^2.31.0"
-mysql-connector-python = "^8.3.0"
 alive-progress = "^3.1.5"
 django = "^5.0.4"
 celery = "^5.4.0"
 sw-django-utils = "^0.0.54"
 whitenoise = "^6.6.0"
+psycopg = "^3.1.19"
 
 
 [build-system]
