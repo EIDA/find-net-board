@@ -24,7 +24,7 @@ class Datacite(models.Model):
     date_available = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"({self.network.code}, {self.network.startdate}, {self.licenses}, {self.page}, {self.publisher}, {self.date_available})"
+        return f"({self.network.netcode}, {self.network.startdate}, {self.licenses}, {self.page}, {self.publisher}, {self.date_available})"
 
 
 class Datacenter(models.Model):

@@ -167,160 +167,122 @@ def run_tests(request):
 @user_passes_test(is_admin)
 def update_db_from_sources(request):
     try:
-        datacenters_datasets, datacenters_urls = get_FDSN_datacenters()
-        eida_routing = get_EIDA_routing()
-        process_networks(datacenters_datasets, datacenters_urls, eida_routing)
+        get_FDSN_networks()
+        get_FDSN_datacenters()
+        get_EIDA_routing()
     except Exception as e:
         traceback.print_exc()
         logger.error(e)
         return HttpResponse(str(e), status=500)
     return HttpResponse(status=200)
 
+def get_FDSN_networks():
+    logger.info("Getting all networks from FDSN and updating database")
+    r = requests.get("https://www.fdsn.org/ws/networks/1/query")
+    with alive_bar(len(r.json()["networks"])) as pbar:
+        for net in r.json()["networks"]:
+            doi = net["doi"] if net["doi"] else None
+            start = datetime.strptime(net["start_date"], "%Y-%m-%d")
+            end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else None
+            obj, created = Fdsn_registry.objects.update_or_create(netcode=net["fdsn_code"], startdate=start, defaults={"enddate": end, "doi": doi})
+            if net["doi"] != "":
+                update_datacite_table(obj)
+            pbar()
+
+def update_datacite_table(net):
+    dataciteapi = "https://api.datacite.org/application/vnd.datacite.datacite+json/"
+    r = requests.get(dataciteapi+net.doi)
+    datacite = r.json()
+    licenses = datacite.get("rightsList") if datacite.get("rightsList") != [] else None
+    publisher = datacite["publisher"].get("name") if "publisher" in  datacite else None
+    dateavail = None
+    for d in datacite.get("dates", []):
+        if d["dateType"] == "Available":
+            if len(d["date"]) == 4:
+                dateavail = d["date"] + "-01-01"
+            else:
+                dateavail = d["date"].split('/')[0]
+    Datacite.objects.update_or_create(network=net, defaults={"licenses": licenses, "page": datacite.get("url"), "publisher": publisher, "date_available": dateavail})
+
 def get_FDSN_datacenters():
     logger.info("Getting all datacenters from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query?includedatasets=true")
-    datacenters_datasets = {}
-    datacenters_urls = {}
-    for dc in r.json()["datacenters"]:
-        station_url = None
-        for r in dc["repositories"]:
-            if r["name"] in ["archive", "ARCHIVE", "SEED"] and "datasets" in r:
-                datacenters_datasets[dc["name"]] = r["datasets"]
+    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query")
+    with alive_bar(len(r.json()["datacenters"])) as pbar:
+        for dc in r.json()["datacenters"]:
+            station_url = None
+            for r in dc["repositories"]:
                 for s in r["services"]:
                     if s["name"] == "fdsnws-station-1":
                         station_url = s["url"]
-        datacenters_urls[dc["name"]] = urlparse(station_url).netloc if station_url is not None else ''
-        Datacenter(name=dc["name"], station_url=station_url).save()
-    return datacenters_datasets, datacenters_urls
+            datacenter = Datacenter(name=dc["name"], station_url=urlparse(station_url).netloc if station_url is not None else None)
+            datacenter.save()
+            if dc["name"] in ["GFZ", "ODC", "ETHZ", "RESIF", "INGV", "LMU", "ICGC", "NOA", "BGR", "NIEP", "KOERI", "UIB-NORSAR"]:
+                update_stationxml_table(datacenter)
+            pbar()
 
-def get_EIDA_routing():
-    logger.info("Getting EIDA routing information")
-    r = requests.get("https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station")
-    return r.json()
-
-def update_networks_table(net):
-    doi = net["doi"] if net["doi"] else None
-    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
-    end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else None
-    Network.objects.update_or_create(code=net["fdsn_code"], startdate=start, defaults={"enddate": end, "doi": doi})
-
-def update_datacite_table(net):
-    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
-    dataciteapi = "https://api.datacite.org/application/vnd.datacite.datacite+json/"
-    r = requests.get(dataciteapi+net["doi"])
-    datacite = r.json()
-    licenses = ""
-    if datacite.get("rightsList"):
-        for l in datacite["rightsList"]:
-            licenses += l["rightsUri"] + ", "
-    licenses = licenses[:-2] if licenses else None
-    publisher = datacite["publisher"].get("name") if "publisher" in  datacite else None
-    network_db = Network.objects.get(code=net["fdsn_code"], startdate=start)
-    Datacite.objects.update_or_create(network=network_db, defaults={"licenses": licenses, "page": datacite.get("url"), "publisher": publisher})
-
-def try_EIDA_routing(net, eida_routing, datacenters_urls):
-    datacenter = None
-    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
-    end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
-    for dc in eida_routing:
-        for network in dc["params"]:
-            try:
-                net_start = datetime.strptime(network["start"], "%Y-%m-%dT%H:%M:%S")
-            except:
-                try:
-                    net_start = datetime.strptime(network["start"], "%Y-%m-%dT%H:%M:%SZ")
-                except:
-                    try:
-                        net_start = datetime.strptime(network["start"], "%Y-%m-%dT%H:%M:%S.%f")
-                    except:
-                        try:
-                            net_start = datetime.strptime(network["start"], "%Y-%m-%dT%H:%M:%S.%fZS")
-                        except:
-                            continue
-            if network["net"] == net["fdsn_code"] and start <= net_start <= end:
-                datacenter = [d for d, u in datacenters_urls.items() if u == urlparse(dc["url"]).netloc][0]
-                break
-        if datacenter:
-            network_db = Network.objects.get(code=net["fdsn_code"], startdate=start)
-            datacenter_db = Datacenter.objects.get(pk=datacenter)
-            Routing.objects.update_or_create(network=network_db, datacenter=datacenter_db, defaults={"priority": network["priority"], "source": "EIDA"})
-            break
-    return datacenter
-
-def try_FDSN_routing(net, datacenters_datasets):
-    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
-    end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
-    datacenter = None
-    for dc in datacenters_datasets:
-        for dset in datacenters_datasets[dc]:
-            try:
-                dset_start = datetime.strptime(dset["starttime"], "%Y-%m-%dT%H:%M:%S")
-            except:
-                try:
-                    dset_start = datetime.strptime(dset["starttime"], "%Y-%m-%dT%H:%M:%SZ")
-                except:
-                    try:
-                        dset_start = datetime.strptime(dset["starttime"], "%Y-%m-%dT%H:%M:%S.%f")
-                    except:
-                        try:
-                            dset_start = datetime.strptime(dset["starttime"], "%Y-%m-%dT%H:%M:%S.%fZ")
-                        except:
-                            continue
-            if dset["network"] == net["fdsn_code"] and start <= dset_start <= end:
-                datacenter = dc
-                break
-        if datacenter:
-            network_db = Network.objects.get(code=net["fdsn_code"], startdate=start)
-            datacenter_db = Datacenter.objects.get(pk=datacenter)
-            Routing.objects.update_or_create(network=network_db, datacenter=datacenter_db, defaults={"priority": dset["priority"], "source": "FDSN"})
-            break
-    return datacenter
-
-def update_stationxml_table(net, url):
-    start = datetime.strptime(net["start_date"], "%Y-%m-%d")
-    end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else datetime.strptime("2100-01-01", "%Y-%m-%d")
+def update_stationxml_table(datacenter):
     try:
-        r = requests.get("https://"+url+f'/fdsnws/station/1/query?network={net["fdsn_code"]}&level=network')
+        r = requests.get(f"https://{datacenter.station_url}/fdsnws/station/1/query?level=network")
         root = ET.fromstring(r.text)
     except Exception:
         return
     namespace = {'ns': 'http://www.fdsn.org/xml/station/1'}
     networks = root.findall("./ns:Network", namespaces=namespace)
-    doi_xml, restriction = None, None
     for n in networks:
         try:
-            xml_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S")
+            net_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S").date()
         except:
             try:
-                xml_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ")
+                net_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ").date()
             except:
                 try:
-                    xml_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f")
+                    net_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f").date()
                 except:
                     try:
-                        xml_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%fZ")
+                        net_start = datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%fZS").date()
                     except:
-                        xml_start = n.attrib["startDate"]
-        if start <= xml_start <= end:
-            # doi
-            doi_xml = n.find("./ns:Identifier", namespaces=namespace)
-            doi_xml = doi_xml.text if doi_xml is not None and len(doi_xml.text) < 100 else None
-            # restriction status
-            restriction = n.attrib.get("restrictedStatus")
-    network_db = Network.objects.get(code=net["fdsn_code"], startdate=start)
-    Stationxml.objects.update_or_create(network=network_db, defaults={"doi": doi_xml, "restriction": restriction})
+                        net_start = n.attrib["startDate"][:10]
+        try:
+            net_end = datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S").date()
+        except:
+            try:
+                net_end = datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%SZ").date()
+            except:
+                try:
+                    net_end = datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%f").date()
+                except:
+                    try:
+                        net_end = datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%fZS").date()
+                    except:
+                        try:
+                            net_end = n.attrib.get("endDate")[:10]
+                        except:
+                            net_end = None
+        doi = n.find("./ns:Identifier", namespaces=namespace)
+        doi = doi.text if doi is not None and len(doi.text) < 100 else None
+        Stationxml.objects.update_or_create(datacenter=datacenter, netcode=n.attrib["code"], startdate=net_start, defaults={"enddate": net_end, "doi": doi, "restriction": n.attrib.get("restrictedStatus")})
 
-def process_networks(datacenters_datasets, datacenters_urls, eida_routing):
-    logger.info("Getting all networks from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/networks/1/query")
-    with alive_bar(len(r.json()["networks"])) as pbar:
-        for net in r.json()["networks"]:
-            update_networks_table(net)
-            if net["doi"] != "":
-                update_datacite_table(net)
-            datacenter = try_EIDA_routing(net, eida_routing, datacenters_urls)
-            if not datacenter:
-                datacenter = try_FDSN_routing(net, datacenters_datasets)
-            if datacenter:
-                update_stationxml_table(net, datacenters_urls[datacenter])
+def get_EIDA_routing():
+    logger.info("Getting EIDA routing information")
+    r = requests.get("https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station")
+    with alive_bar(len(r.json())) as pbar:
+        for dc in r.json():
+            # get datacenter from database
+            try:
+                datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
+            except:
+                print(dc["url"])
+            for net in dc["params"]:
+                try:
+                    net_start = datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S").date()
+                except:
+                    net_start = datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                try:
+                    net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S").date()
+                except:
+                    try:
+                        net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                    except:
+                        net_end = None
+                Eida_routing.objects.update_or_create(netcode=net["net"], datacenter=datacenter, startdate=net_start, defaults={"enddate": net_end, "priority": net["priority"]})
             pbar()
