@@ -36,11 +36,11 @@
             xhr.open('GET', '/board/admin/run_tests/', true);
             xhr.onload = function() {
                 if (xhr.status === 200) {
-                    document.getElementById('tests-message').innerText = 'Tests ran successfully!';
+                    document.getElementById('tests-message').innerText = 'Consistency checks ran successfully!';
                     document.getElementById('tests-message').style.color = 'green';
                 } else {
                     console.log(xhr.responseText);
-                    document.getElementById('tests-message').innerText = 'Tests were not completed successfully! See console or server logs for more details';
+                    document.getElementById('tests-message').innerText = 'Consistency checks were not completed successfully! See console or server logs for more details';
                     document.getElementById('tests-message').style.color = 'red';
                 }
             };

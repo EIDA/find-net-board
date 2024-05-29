@@ -18,7 +18,7 @@ class StationxmlAdmin(admin.ModelAdmin):
     search_fields = ['datacenter__name', 'netcode']
 
 class ConsistencyAdmin(admin.ModelAdmin):
-    search_fields = ['fdsn_net', 'eidarout_net', 'xml_net']
+    search_fields = ['fdsn_net__netcode', 'eidarout_net__netcode', 'xml_net__netcode']
 
 admin.site.register(Fdsn_registry, Fdsn_registryAdmin)
 admin.site.register(Consistency, ConsistencyAdmin)
