@@ -8,56 +8,101 @@ from django.utils import timezone
 import traceback
 
 from .models import Fdsn_registry, Consistency, Eida_routing, Datacenter, Datacite, Stationxml
-from .views import get_FDSN_datacenters, get_EIDA_routing, update_networks_table, update_datacite_table, try_EIDA_routing, try_FDSN_routing, update_stationxml_table, process_networks
+from .views import update_datacite_table, update_stationxml_table
 
 logger = logging.getLogger(__name__)
 
 @shared_task
 def update_and_run():
-    datacenters_datasets, datacenters_urls = get_FDSN_datacenters()
-    eida_routing = get_EIDA_routing()
     logger.info("Getting all networks from FDSN and updating database")
     r = requests.get("https://www.fdsn.org/ws/networks/1/query")
-    i = 1
     for net in r.json()["networks"]:
-        logger.debug(f"Progress {i}/{len(r.json()['networks'])}")
-        update_networks_table(net)
+        doi = net["doi"] if net["doi"] else None
+        start = datetime.strptime(net["start_date"], "%Y-%m-%d")
+        end = datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else None
+        obj, created = Fdsn_registry.objects.update_or_create(netcode=net["fdsn_code"], startdate=start, defaults={"enddate": end, "doi": doi})
         if net["doi"] != "":
-            update_datacite_table(net)
-        datacenter = try_EIDA_routing(net, eida_routing, datacenters_urls)
-        if not datacenter:
-            datacenter = try_FDSN_routing(net, datacenters_datasets)
-        if datacenter:
-            update_stationxml_table(net, datacenters_urls[datacenter])
-        i += 1
+            update_datacite_table(obj)
+
+    logger.info("Getting all datacenters from FDSN and updating database")
+    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query")
+    for dc in r.json()["datacenters"]:
+        station_url = None
+        for r in dc["repositories"]:
+            for s in r["services"]:
+                if s["name"] == "fdsnws-station-1":
+                    station_url = s["url"]
+        datacenter = Datacenter(name=dc["name"], station_url=urlparse(station_url).netloc if station_url is not None else None)
+        datacenter.save()
+        if dc["name"] in ["GEOFON", "ODC", "ETH", "RESIF", "INGV", "LMU", "ICGC", "NOA", "BGR", "NIEP", "KOERI", "UIB-NORSAR"]:
+            update_stationxml_table(datacenter)
+
+    logger.info("Getting EIDA routing information")
+    r = requests.get("https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station")
+    for dc in r.json():
+        # get datacenter from database
+        try:
+            datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
+        except:
+            print(dc["url"])
+        for net in dc["params"]:
+            try:
+                net_start = datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S").date()
+            except:
+                net_start = datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f").date()
+            try:
+                net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S").date()
+            except:
+                try:
+                    net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f").date()
+                except:
+                    net_end = None
+            Eida_routing.objects.update_or_create(netcode=net["net"], datacenter=datacenter, startdate=net_start, defaults={"enddate": net_end, "priority": net["priority"]})
     logger.info("Finished updating DB from sources")
 
-    logger.info("Running tests and storing results to database for each available network")
-    datacenters = {datacenter.name: datacenter.station_url for datacenter in Datacenter.objects.all()}
-    networks = {(network.code, network.startdate): (network.enddate, network.doi) for network in Network.objects.all()}
-    routing = {(routing.network.code, routing.network.startdate, routing.datacenter): (routing.priority, routing.source) for routing in Routing.objects.all()}
-    datacites = {(datacite.network.code, datacite.network.startdate): (datacite.licenses, datacite.page, datacite.publisher) for datacite in Datacite.objects.all()}
-    stationxml = {(stationxml.network.code, stationxml.network.startdate): (stationxml.doi, stationxml.restriction) for stationxml in Stationxml.objects.all()}
+    logger.info("Checking consistency for each available network")
     current_time = timezone.now().replace(microsecond=0)
-    i = 1
-    for net in networks:
-        logger.debug(f"Progress {i}/{len(networks)}")
-        if net not in datacites:
-            page_works, has_license = None, None
-        else:
-            try:
-                r = requests.get(datacites[net][1])
-                page_works = True if r.status_code == 200 else False
-            except Exception:
-                page_works = False
-            has_license = True if datacites[net][0] is not None else False
-        if net not in stationxml or net not in datacites:
-            xml_doi_match, xml_restriction_match = None, None
-        else:
-            xml_doi_match = networks[net][1] == stationxml[net][0]
-            open = True if stationxml[net][1] in ['open', 'partial'] else False
-            xml_restriction_match = has_license == open
-        network_db = Network.objects.get(code=net[0], startdate=net[1])
-        Test(test_time=current_time, network=network_db, doi=networks[net][1], page_works=page_works, has_license=has_license, xml_doi_match=xml_doi_match, xml_restriction_match=xml_restriction_match).save()
-        i += 1
+    # starting from Fdsn_registry table
+    logger.info("Making consistency checks starting from FDSN registry")
+    for net in Fdsn_registry.objects.all():
+        if net.netcode not in ["HA", "HI"]:
+            fdsn_end = net.enddate if net.enddate is not None else datetime.strptime("2100-01-01", "%Y-%m-%d")
+            routings = Eida_routing.objects.filter(netcode=net.netcode, startdate__range=(net.startdate, fdsn_end))
+            datacite = Datacite.objects.filter(network=net).first()
+            if not datacite is not None:
+                page_works, has_license = None, None
+            else:
+                try:
+                    r = requests.get(datacite.page, timeout=10)
+                    page_works = True if r.status_code == 200 else False
+                except Exception:
+                    page_works = False
+                has_license = True if datacite.licenses is not None else False
+            if not routings.exists():
+                Consistency(test_time=current_time, fdsn_net=net, doi=net.doi, page_works=page_works, has_license=has_license).save()
+            else:
+                for rout in routings:
+                    rout_end = rout.enddate if rout.enddate is not None else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                    xml = Stationxml.objects.filter(datacenter=rout.datacenter.name, netcode=rout.netcode, startdate__range=(rout.startdate, rout_end)).first()
+                    Consistency(test_time=current_time, fdsn_net=net, eidarout_net=rout, xml_net=xml if xml is not None else None, doi=net.doi, page_works=page_works, has_license=has_license, xml_doi_match=net.doi==xml.doi if xml is not None and net.doi is not None else None).save()
+    # starting from Stationxml table
+    logger.info("Making consistency checks starting from StationXML files")
+    unlinked_stationxml = Stationxml.objects.filter(
+        ~Q(id__in=Consistency.objects.filter(test_time=current_time).values_list('xml_net_id', flat=True))
+    )
+    for net in unlinked_stationxml:
+        if net.netcode != "HA":
+            routings = Eida_routing.objects.filter(Q(netcode=net.netcode, startdate__lte=net.startdate, enddate__gte=net.startdate)
+                | Q(netcode=net.netcode, startdate__lte=net.startdate, enddate__isnull=True))
+            if not routings.exists():
+                Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
+            for rout in routings:
+                Consistency(test_time=current_time, xml_net=net, eidarout_net=rout, doi=net.doi).save()
+    # starting from Eida_routing table
+    logger.info("Making consistency checks starting from EIDA routing registry")
+    unlinked_routing = Eida_routing.objects.filter(
+        ~Q(id__in=Consistency.objects.filter(test_time=current_time).values_list('eidarout_net_id', flat=True))
+    )
+    for net in unlinked_routing:
+        Consistency(test_time=current_time, eidarout_net=net).save()
     logger.info("Finished running tests for all networks")

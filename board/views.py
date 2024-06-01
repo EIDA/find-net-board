@@ -151,7 +151,7 @@ def run_tests(request):
         # starting from Stationxml table
         logger.info("Making consistency checks starting from StationXML files")
         unlinked_stationxml = Stationxml.objects.filter(
-            ~Q(id__in=Consistency.objects.values_list('xml_net_id', flat=True))
+            ~Q(id__in=Consistency.objects.filter(test_time=current_time).exclude(xml_net_id__isnull=True).values_list('xml_net_id', flat=True))
         )
         with alive_bar(len(unlinked_stationxml)) as pbar:
             for net in unlinked_stationxml:
@@ -165,7 +165,7 @@ def run_tests(request):
         # starting from Eida_routing table
         logger.info("Making consistency checks starting from EIDA routing registry")
         unlinked_routing = Eida_routing.objects.filter(
-            ~Q(id__in=Consistency.objects.values_list('eidarout_net_id', flat=True))
+            ~Q(id__in=Consistency.objects.filter(test_time=current_time).exclude(eidarout_net_id__isnull=True).values_list('eidarout_net_id', flat=True))
         )
         with alive_bar(len(unlinked_routing)) as pbar:
             for net in unlinked_routing:
@@ -231,7 +231,7 @@ def get_FDSN_datacenters():
                         station_url = s["url"]
             datacenter = Datacenter(name=dc["name"], station_url=urlparse(station_url).netloc if station_url is not None else None)
             datacenter.save()
-            if dc["name"] in ["GFZ", "ODC", "ETHZ", "RESIF", "INGV", "LMU", "ICGC", "NOA", "BGR", "NIEP", "KOERI", "UIB-NORSAR"]:
+            if dc["name"] in ["GEOFON", "ODC", "ETH", "RESIF", "INGV", "LMU", "ICGC", "NOA", "BGR", "NIEP", "KOERI", "UIB-NORSAR"]:
                 update_stationxml_table(datacenter)
             pbar()
 

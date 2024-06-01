@@ -93,7 +93,7 @@ Provided that the application is up and running:
 
 - Visit http://localhost:8000/admin/ to view the admin page.
   While at it you can click `Update DB from Sources` or `Run Tests` buttons to perform the corresponding tasks.
-  Update might take around 45 minutes and running the tests around 1 hour and 15 minutes.
+  Update might take around 30 minutes and running the tests around 40 minutes.
 
 - Visit http://localhost:8000/board/ to view the board that presents the results of the tests.
   When the page loads, the last set of tests is shown. You can use the search form to view specific tests.
