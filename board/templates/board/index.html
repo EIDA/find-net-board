@@ -28,24 +28,71 @@
                 <th>Network</th>
                 <th>Start Date</th>
                 <th>DOI</th>
+                <th>FDSN Registry</th>
+                <th>StationXML</th>
+                <th>EIDA Routing</th>
                 <th>Page</th>
                 <th>License</th>
-                <th>StationXML DOI</th>
-                <th>StationXML Restriction</th>
+                <th>XML DOI Match</th>
             </tr>
         </thead>
         <tbody>
             {% for test in tests %}
-            <tr data-network-code="{{ test.network.code }}">
+            <tr data-network-code="{% if test.fdsn_net is not None %}{{ test.fdsn_net.netcode }}{% elif test.xml_net is not None %}{{ test.xml_net.netcode }}{% else %}{{ test.eidarout_net.netcode }}{% endif %}">
                 <td>{{ test.test_time }}</td>
-                <td>{{ routing_data|get_value_from_dict:test.id }}</td>
-                <td>{{ test.network.code }}</td>
-                <td>{{ test.network.startdate | date:"Y-m-d" }}</td>
+                <td>
+                    {% if test.xml_net %}
+                        {{ test.xml_net.datacenter.name }}
+                    {% elif test.eidarout_net %}
+                        {{ test.eidarout_net.datacenter.name }}
+                    {% else %}
+                        -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.fdsn_net %}
+                        {{ test.fdsn_net.netcode }}
+                    {% elif test.xml_net %}
+                        {{ test.xml_net.netcode }}
+                    {% else %}
+                        {{ test.eidarout_net.netcode }}
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.fdsn_net %}
+                        {{ test.fdsn_net.startdate | date:"Y-m-d" }}
+                    {% elif test.xml_net %}
+                        {{ test.xml_net.startdate | date:"Y-m-d" }}
+                    {% else %}
+                        {{ test.eidarout_net.startdate | date:"Y-m-d" }}
+                    {% endif %}
+                </td>
                 <td>
                     {% if test.doi %}
                         <a href="https://doi.org/{{ test.doi }}">{{ test.doi }}</a>
                     {% else %}
                         -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.fdsn_net %}
+                        ✅
+                    {% else %}
+                        ❌
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.xml_net %}
+                        ✅
+                    {% else %}
+                        ❌
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.eidarout_net %}
+                        ✅
+                    {% else %}
+                        ❌
                     {% endif %}
                 </td>
                 <td>
@@ -81,17 +128,6 @@
                         -
                     {% endif %}
                 </td>
-                <td>
-                    {% if test.xml_restriction_match is not None %}
-                        {% if test.xml_restriction_match %}
-                            ✅
-                        {% else %}
-                            ❌
-                        {% endif %}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -103,7 +139,7 @@
 <script>
     document.getElementById('search-form').addEventListener('submit', function(event) {
         event.preventDefault();
-        let networkCode = document.getElementById('search-network').value.toLowerCase();
+        let networkCode = document.getElementById('search-network').value.toUpperCase();
         let startDate = document.getElementById('start-date').value;
         let endDate = document.getElementById('end-date').value;
         let options = {
@@ -131,10 +167,12 @@
                         <td>${test.network_code}</td>
                         <td>${test.start_date}</td>
                         <td>${test.doi ? `<a href="https://doi.org/${test.doi}">${test.doi}</a>` : '-'}</td>
+                        <td>${test.fdsn_net ? '✅' : '❌'}</td>
+                        <td>${test.xml_net ? '✅' : '❌'}</td>
+                        <td>${test.eidarout_net ? '✅' : '❌'}</td>
                         <td>${test.page_works !== null ? (test.page_works ? '✅' : '❌') : '-'}</td>
                         <td>${test.has_license !== null ? (test.has_license ? '✅' : '❌') : '-'}</td>
                         <td>${test.xml_doi_match !== null ? (test.xml_doi_match ? '✅' : '❌') : '-'}</td>
-                        <td>${test.xml_restriction_match !== null ? (test.xml_restriction_match ? '✅' : '❌') : '-'}</td>
                     `;
                     tableBody.appendChild(row);
                 });

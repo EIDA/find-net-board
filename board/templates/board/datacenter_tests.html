@@ -23,23 +23,46 @@
                 <th>Network</th>
                 <th>Start Date</th>
                 <th>DOI</th>
+                <th>FDSN Registry</th>
+                <th>StationXML</th>
+                <th>EIDA Routing</th>
                 <th>Page</th>
                 <th>License</th>
-                <th>StationXML DOI</th>
-                <th>StationXML Restriction</th>
+                <th>XML DOI Match</th>
             </tr>
         </thead>
         <tbody>
             {% for test in tests %}
-            <tr data-network-code="{{ test.network.code }}">
+            <tr data-network-code="{% if test.fdsn_net is not None %}{{ test.fdsn_net.netcode }}{% elif test.xml_net is not None %}{{ test.xml_net.netcode }}{% else %}{{ test.eidarout_net.netcode }}{% endif %}">
                 <td>{{ test.test_time }}</td>
                 <td>{{ test.network_code }}</td>
-                <td>{{ test.network_startdate | date:"Y-m-d" }}</td>
+                <td>{{ test.start_date }}</td>
                 <td>
                     {% if test.doi %}
                         <a href="https://doi.org/{{ test.doi }}">{{ test.doi }}</a>
                     {% else %}
                         -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.fdsn_net %}
+                        ✅
+                    {% else %}
+                        ❌
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.xml_net %}
+                        ✅
+                    {% else %}
+                        ❌
+                    {% endif %}
+                </td>
+                <td>
+                    {% if test.eidarout_net %}
+                        ✅
+                    {% else %}
+                        ❌
                     {% endif %}
                 </td>
                 <td>
@@ -67,17 +90,6 @@
                 <td>
                     {% if test.xml_doi_match is not None %}
                         {% if test.xml_doi_match %}
-                            ✅
-                        {% else %}
-                            ❌
-                        {% endif %}
-                    {% else %}
-                        -
-                    {% endif %}
-                </td>
-                <td>
-                    {% if test.xml_restriction_match is not None %}
-                        {% if test.xml_restriction_match %}
                             ✅
                         {% else %}
                             ❌
@@ -120,10 +132,12 @@
                         <td>${test.network_code}</td>
                         <td>${test.start_date}</td>
                         <td>${test.doi ? `<a href="https://doi.org/${test.doi}">${test.doi}</a>` : '-'}</td>
+                        <td>${test.fdsn_net ? '✅' : '❌'}</td>
+                        <td>${test.xml_net ? '✅' : '❌'}</td>
+                        <td>${test.eidarout_net ? '✅' : '❌'}</td>
                         <td>${test.page_works !== null ? (test.page_works ? '✅' : '❌') : '-'}</td>
                         <td>${test.has_license !== null ? (test.has_license ? '✅' : '❌') : '-'}</td>
                         <td>${test.xml_doi_match !== null ? (test.xml_doi_match ? '✅' : '❌') : '-'}</td>
-                        <td>${test.xml_restriction_match !== null ? (test.xml_restriction_match ? '✅' : '❌') : '-'}</td>
                     `;
                     tableBody.appendChild(row);
                 });

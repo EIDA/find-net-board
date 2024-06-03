@@ -14,10 +14,12 @@
             <tr>
                 <th>Test Run Time</th>
                 <th>Networks (#)</th>
+                <th>Exists in FDSN Registry (%)</th>
+                <th>Has StationXML Registry (%)</th>
+                <th>Exists in EIDA Routing (%)</th>
                 <th>Page Test (%)</th>
                 <th>License Test (%)</th>
-                <th>StationXML DOI Test (%)</th>
-                <th>StationXML Restriction Test (%)</th>
+                <th>XML DOI Match Test (%)</th>
             </tr>
         </thead>
         <tbody>
@@ -25,10 +27,12 @@
             <tr>
                 <td>{{ test_time.test_time }}</td>
                 <td>{{ test_time.count }}</td>
+                <td>{{ test_time.null_fdsn_net_percentage|floatformat:2 }}</td>
+                <td>{{ test_time.null_xml_net_percentage|floatformat:2 }}</td>
+                <td>{{ test_time.null_eidarout_net_percentage|floatformat:2 }}</td>
                 <td>{{ test_time.true_page_percentage|floatformat:2 }}</td>
                 <td>{{ test_time.true_license_percentage|floatformat:2 }}</td>
                 <td>{{ test_time.true_xml_doi_match_percentage|floatformat:2 }}</td>
-                <td>{{ test_time.true_xml_restriction_match_percentage|floatformat:2 }}</td>
             </tr>
             {% endfor %}
         </tbody>

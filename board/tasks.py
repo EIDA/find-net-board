@@ -1,4 +1,4 @@
-from celery import shared_task
+.lower()from celery import shared_task.lower()
 import requests
 import logging
 from urllib.parse import urlparse
@@ -84,7 +84,7 @@ def update_and_run():
                 for rout in routings:
                     rout_end = rout.enddate if rout.enddate is not None else datetime.strptime("2100-01-01", "%Y-%m-%d")
                     xml = Stationxml.objects.filter(datacenter=rout.datacenter.name, netcode=rout.netcode, startdate__range=(rout.startdate, rout_end)).first()
-                    Consistency(test_time=current_time, fdsn_net=net, eidarout_net=rout, xml_net=xml if xml is not None else None, doi=net.doi, page_works=page_works, has_license=has_license, xml_doi_match=net.doi==xml.doi if xml is not None and net.doi is not None else None).save()
+                    Consistency(test_time=current_time, fdsn_net=net, eidarout_net=rout, xml_net=xml if xml is not None else None, doi=net.doi, page_works=page_works, has_license=has_license, xml_doi_match=net.doi.lower()==xml.doi.lower() if xml is not None and xml.doi is not None and net.doi is not None else None).save()
     # starting from Stationxml table
     logger.info("Making consistency checks starting from StationXML files")
     unlinked_stationxml = Stationxml.objects.filter(

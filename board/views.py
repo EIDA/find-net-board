@@ -2,7 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import user_passes_test
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
-from django.db.models import Max, Count, Case, When, FloatField, F, Q
+from django.db.models import Max, Count, Case, When, FloatField, F, Q, ExpressionWrapper
 
 from .models import Fdsn_registry, Consistency, Eida_routing, Datacenter, Datacite, Stationxml
 
@@ -20,25 +20,20 @@ logger = logging.getLogger(__name__)
 def index(request):
     latest_test_time = Consistency.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
     tests = Consistency.objects.filter(test_time=latest_test_time)
-    routing_data = {}
-    for test in tests:
-        routing = Eida_routing.objects.filter(network=test.network).first()
-        routing_data[test.id] = routing.datacenter.name if routing is not None else '-'
-    context = {'tests': tests, 'routing_data': routing_data}
+    context = {'tests': tests}
     return render(request, "board/index.html", context)
 
 
 # below view to retrieve tests that match user request
 def search_tests(request):
     network_code = request.GET.get('network', None)
-    datacenter = request.GET.get('datacenter', None)
     start_date = request.GET.get('start', None)
     end_date = request.GET.get('end', None)
 
-    tests = Test.objects.order_by('-test_time').all()
+    tests = Consistency.objects.order_by('-test_time').all()
 
     if network_code:
-        tests = tests.filter(network__code=network_code)
+        tests = tests.filter(fdsn_net__netcode=network_code)
 
     if start_date:
         tests = tests.filter(test_time__gte=start_date)
@@ -48,19 +43,19 @@ def search_tests(request):
 
     tests_data = []
     for test in tests:
-        routing = Routing.objects.filter(network=test.network).first()
-        if datacenter is None or (routing is not None and routing.datacenter.name.upper() == datacenter.upper()):
-            tests_data.append({
-                'test_time': test.test_time,
-                'datacenter': routing.datacenter.name if routing is not None else '-',
-                'network_code': test.network.code,
-                'start_date': test.network.startdate,
-                'doi': test.doi,
-                'page_works': test.page_works,
-                'has_license': test.has_license,
-                'xml_doi_match': test.xml_doi_match,
-                'xml_restriction_match': test.xml_restriction_match
-            })
+        tests_data.append({
+            'test_time': test.test_time,
+            'datacenter': test.xml_net.datacenter.name if test.xml_net is not None else (test.eidarout_net.datacenter.name if test.eidarout_net is not None else '-'),
+            'network_code': test.fdsn_net.netcode if test.fdsn_net is not None else (test.xml_net.netcode if test.xml_net is not None else test.eidarout_net.netcode),
+            'start_date': test.fdsn_net.startdate if test.fdsn_net is not None else (test.xml_net.startdate if test.xml_net is not None else test.eidarout_net.startdate),
+            'doi': test.doi,
+            'fdsn_net': True if test.fdsn_net is not None else False,
+            'xml_net': True if test.xml_net is not None else False,
+            'eidarout_net': True if test.eidarout_net is not None else False,
+            'page_works': test.page_works,
+            'has_license': test.has_license,
+            'xml_doi_match': test.xml_doi_match
+        })
 
     return JsonResponse({'tests': tests_data})
 
@@ -69,19 +64,19 @@ def search_tests(request):
 def test_runs(request):
     unique_test_times = Consistency.objects.values('test_time').annotate(
         count=Count('test_time'),
-        true_page_count=Count(
-            Case(When(page_works=True, then=1), output_field=FloatField())
-        ),
-        true_license_count=Count(
-            Case(When(has_license=True, then=1), output_field=FloatField())
-        ),
-        true_xml_doi_match_count=Count(
-            Case(When(xml_doi_match=True, then=1), output_field=FloatField())
-        )
+        true_page_count=Count(Case(When(page_works=True, then=1))),
+        true_license_count=Count(Case(When(has_license=True, then=1))),
+        true_xml_doi_match_count=Count(Case(When(xml_doi_match=True, then=1))),
+        null_fdsn_net_count=Count(Case(When(fdsn_net__isnull=False, then=1))),
+        null_xml_net_count=Count(Case(When(xml_net__isnull=False, then=1))),
+        null_eidarout_net_count=Count(Case(When(eidarout_net__isnull=False, then=1)))
     ).annotate(
-        true_page_percentage=100 * (F('true_page_count') / F('count')),
-        true_license_percentage=100 * (F('true_license_count') / F('count')),
-        true_xml_doi_match_percentage=100 * (F('true_xml_doi_match_count') / F('count'))
+        true_page_percentage=ExpressionWrapper((F('true_page_count') * 100.0) / F('count'), output_field=FloatField()),
+        true_license_percentage=ExpressionWrapper((F('true_license_count') * 100.0) / F('count'), output_field=FloatField()),
+        true_xml_doi_match_percentage=ExpressionWrapper((F('true_xml_doi_match_count') * 100.0) / F('count'), output_field=FloatField()),
+        null_fdsn_net_percentage=ExpressionWrapper((F('null_fdsn_net_count') * 100.0) / F('count'), output_field=FloatField()),
+        null_xml_net_percentage=ExpressionWrapper((F('null_xml_net_count') * 100.0) / F('count'), output_field=FloatField()),
+        null_eidarout_net_percentage=ExpressionWrapper((F('null_eidarout_net_count') * 100.0) / F('count'), output_field=FloatField())
     ).order_by('-test_time')
 
     return render(request, "board/test_runs.html", {'unique_test_times': list(unique_test_times)})
@@ -93,21 +88,34 @@ def datacenter_tests(request, datacenter_name):
         datacenter = Datacenter.objects.get(name=datacenter_name)
     except Datacenter.DoesNotExist:
         return HttpResponse("<h1>Not Found</h1>Datacenter does not exist!", status=404)
+    start_date = request.GET.get('start', None)
+    end_date = request.GET.get('end', None)
 
-    latest_test_time = Consistency.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
-    consistencies = Consistency.objects.filter(test_time=latest_test_time, xml_net__datacenter__name=datacenter_name)
+    consistencies = Consistency.objects.filter(Q(xml_net__datacenter__name=datacenter_name) |Q(eidarout_net__datacenter__name=datacenter_name))
+
+    if not start_date and not end_date:
+        latest_test_time = Consistency.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
+        consistencies = consistencies.filter(test_time=latest_test_time)
+    else:
+        if start_date:
+            consistencies = consistencies.filter(test_time__gte=start_date)
+        if end_date:
+            consistencies = consistencies.filter(test_time__lte=end_date)
+
 
     consistency_data = []
     for consistency in consistencies:
         consistency_data.append({
             'test_time': consistency.test_time,
-            'network_code': consistency.network.code,
-            'network_startdate': consistency.network.startdate,
+            'network_code': consistency.xml_net.netcode if consistency.xml_net is not None else consistency.eidarout_net.netcode,
+            'start_date': consistency.xml_net.startdate if consistency.xml_net is not None else consistency.eidarout_net.startdate,
             'doi': consistency.doi,
+            'fdsn_net': True if consistency.fdsn_net is not None else False,
+            'xml_net': True if consistency.xml_net is not None else False,
+            'eidarout_net': True if consistency.eidarout_net is not None else False,
             'page_works': consistency.page_works,
             'has_license': consistency.has_license,
-            'xml_doi_match': consistency.xml_doi_match,
-            'xml_restriction_match': consistency.xml_restriction_match
+            'xml_doi_match': consistency.xml_doi_match
         })
 
     context = {'datacenter_name': datacenter_name.upper(), 'tests': consistency_data}
@@ -146,7 +154,7 @@ def run_tests(request):
                     for rout in routings:
                         rout_end = rout.enddate if rout.enddate is not None else datetime.strptime("2100-01-01", "%Y-%m-%d")
                         xml = Stationxml.objects.filter(datacenter=rout.datacenter.name, netcode=rout.netcode, startdate__range=(rout.startdate, rout_end)).first()
-                        Consistency(test_time=current_time, fdsn_net=net, eidarout_net=rout, xml_net=xml if xml is not None else None, doi=net.doi, page_works=page_works, has_license=has_license, xml_doi_match=net.doi==xml.doi if xml is not None and net.doi is not None else None).save()
+                        Consistency(test_time=current_time, fdsn_net=net, eidarout_net=rout, xml_net=xml if xml is not None else None, doi=net.doi, page_works=page_works, has_license=has_license, xml_doi_match=net.doi.lower()==xml.doi.lower() if xml is not None and xml.doi is not None and net.doi is not None else None).save()
                 pbar()
         # starting from Stationxml table
         logger.info("Making consistency checks starting from StationXML files")
