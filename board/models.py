@@ -84,4 +84,4 @@ class Consistency(models.Model):
         ]
 
     def __str__(self):
-        return f"({self.test_time}, {self.fdsn_net.netcode if self.fdsn_net is not None else None}, {self.eidarout_net.netcode if self.eidarout_net is not None else None}, {self.xml_net.netcode if self.xml_net is not None else None}, {self.doi}, {self.page_works}, {self.has_license}, {self.xml_doi_match})"
+        return f"({self.test_time}, {f'{self.fdsn_net.netcode}-{self.fdsn_net.startdate.year}' if self.fdsn_net is not None else None}, {f'{self.eidarout_net.netcode}-{self.eidarout_net.startdate.year}' if self.eidarout_net is not None else None}, {f'{self.xml_net.netcode}-{self.xml_net.startdate.year}' if self.xml_net is not None else None}, {self.doi}, {self.page_works}, {self.has_license}, {self.xml_doi_match})"
