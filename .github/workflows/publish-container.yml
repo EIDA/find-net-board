@@ -8,7 +8,7 @@ on:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  SHORT_SHA: ${{ github.sha::8 }}
+  SHORT_SHA: ${GITHUB_SHA::8}
 
 jobs:
   build-and-push-image:
@@ -47,11 +47,9 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-          env:
-            TAGS: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file: ./Dockerfile
 
       - name: Post build info
         run: |
-          echo "Docker image published successfully to GHCR with tags: $TAGS"
+          echo "Docker image published successfully to GHCR with tags: ${{ steps.meta.outputs.tags }}"
