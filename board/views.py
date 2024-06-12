@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 from alive_progress import alive_bar
 import traceback
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +21,13 @@ logger = logging.getLogger(__name__)
 def index(request):
     latest_test_time = Consistency.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
     tests = Consistency.objects.filter(test_time=latest_test_time)
+    for test in tests:
+        if test.fdsn_net is not None and re.match(r'^[0-9XYZ]', test.fdsn_net.netcode):
+            test.fdsn_net.netcode = f"{test.fdsn_net.netcode}{test.fdsn_net.startdate.year}"
+        elif test.xml_net is not None and re.match(r'^[0-9XYZ]', test.xml_net.netcode):
+            test.xml_net.netcode = f"{test.xml_net.netcode}{test.xml_net.startdate.year}"
+        elif test.eidarout_net is not None and re.match(r'^[0-9XYZ]', test.eidarout_net.netcode):
+            test.eidarout_net.netcode = f"{test.eidarout_net.netcode}{test.eidarout_net.startdate.year}"
     context = {'tests': tests}
     return render(request, "board/index.html", context)
 
@@ -43,10 +51,18 @@ def search_tests(request):
 
     tests_data = []
     for test in tests:
+        if test.fdsn_net is not None and re.match(r'^[0-9XYZ]', test.fdsn_net.netcode):
+            netcode = f"{test.fdsn_net.netcode}{test.fdsn_net.startdate.year}"
+        elif test.xml_net is not None and re.match(r'^[0-9XYZ]', test.xml_net.netcode):
+            netcode = f"{test.xml_net.netcode}{test.xml_net.startdate.year}"
+        elif test.eidarout_net is not None and re.match(r'^[0-9XYZ]', test.eidarout_net.netcode):
+            netcode = f"{test.eidarout_net.netcode}{test.eidarout_net.startdate.year}"
+        else:
+            netcode = test.fdsn_net.netcode if test.fdsn_net is not None else (test.xml_net.netcode if test.xml_net is not None else test.eidarout_net.netcode)
         tests_data.append({
             'test_time': test.test_time,
             'datacenter': test.xml_net.datacenter.name if test.xml_net is not None else (test.eidarout_net.datacenter.name if test.eidarout_net is not None else '-'),
-            'network_code': test.fdsn_net.netcode if test.fdsn_net is not None else (test.xml_net.netcode if test.xml_net is not None else test.eidarout_net.netcode),
+            'network_code': netcode,
             'start_date': test.fdsn_net.startdate if test.fdsn_net is not None else (test.xml_net.startdate if test.xml_net is not None else test.eidarout_net.startdate),
             'doi': test.doi,
             'fdsn_net': True if test.fdsn_net is not None else False,
@@ -91,7 +107,7 @@ def datacenter_tests(request, datacenter_name):
     start_date = request.GET.get('start', None)
     end_date = request.GET.get('end', None)
 
-    consistencies = Consistency.objects.filter(Q(xml_net__datacenter__name=datacenter_name) |Q(eidarout_net__datacenter__name=datacenter_name))
+    consistencies = Consistency.objects.filter(Q(xml_net__datacenter__name=datacenter_name) | Q(eidarout_net__datacenter__name=datacenter_name))
 
     if not start_date and not end_date:
         latest_test_time = Consistency.objects.aggregate(latest_test_time=Max('test_time'))['latest_test_time']
@@ -105,9 +121,15 @@ def datacenter_tests(request, datacenter_name):
 
     consistency_data = []
     for consistency in consistencies:
+        if consistency.xml_net is not None and re.match(r'^[0-9XYZ]', consistency.xml_net.netcode):
+            netcode = f"{consistency.xml_net.netcode}{consistency.xml_net.startdate.year}"
+        elif consistency.eidarout_net is not None and re.match(r'^[0-9XYZ]', consistency.eidarout_net.netcode):
+            netcode = f"{consistency.eidarout_net.netcode}{consistency.eidarout_net.startdate.year}"
+        else:
+            netcode = consistency.xml_net.netcode if consistency.xml_net is not None else consistency.eidarout_net.netcode
         consistency_data.append({
             'test_time': consistency.test_time,
-            'network_code': consistency.xml_net.netcode if consistency.xml_net is not None else consistency.eidarout_net.netcode,
+            'network_code': netcode,
             'start_date': consistency.xml_net.startdate if consistency.xml_net is not None else consistency.eidarout_net.startdate,
             'doi': consistency.doi,
             'fdsn_net': True if consistency.fdsn_net is not None else False,
