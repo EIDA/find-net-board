@@ -53,4 +53,5 @@ jobs:
           file: ./Dockerfile
 
       - name: Post build info
-        run: echo "Docker image published successfully to GHCR with tags: $TAGS"
+        run: |
+          echo "Docker image published successfully to GHCR with tags: $TAGS"
