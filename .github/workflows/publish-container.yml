@@ -47,8 +47,10 @@ jobs:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          env:
+            TAGS: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           file: ./Dockerfile
 
       - name: Post build info
-        run: echo "Docker image published successfully to GHCR with tags: ${{ steps.meta.outputs.tags }}"
+        run: echo "Docker image published successfully to GHCR with tags: $TAGS"
