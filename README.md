@@ -26,16 +26,11 @@ For production see the recommended option using [Docker](https://www.docker.com/
   ```
   **Note:** You can use your own choices for role name, database name, password, host and port. Be sure to pass them through environment variables when running the docker container.
 
-- From within the project folder build the Docker image:
+- From within the project folder, either build the Docker image:
   ```bash
   docker build --network host -t networkstests .
   ```
-  **Note:** Look in the [Dockerfile](https://github.com/EIDA/find-net-board/blob/main/Dockerfile) and make sure to use credentials for the new admin user that do not already exist. If you already have made an admin user (e.g. by having built the image again before) and do not want to make a new one, you can delete the command:
-  ```
-  RUN python manage.py shell -c "from django.contrib.auth.models import User; \
-    User.objects.create_superuser('admin', 'admin@example.com', 'adminpassword')"
-  ```
-  If this is the first time you install the application, you can ignore the above note.
+  or pull from [https://ghcr.io/eida/eida/find-net-board:main](https://ghcr.io/eida/eida/find-net-board:main).
 
 - Run the Docker container:
   ```bash
