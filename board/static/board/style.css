@@ -19,6 +19,7 @@ label {
   margin-right: 10px;
 }
 
+fieldset,
 input[type="text"],
 input[type="date"],
 button {

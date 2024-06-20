@@ -24,6 +24,7 @@ For production see the recommended option using [Docker](https://www.docker.com/
   CREATE DATABASE networks_tests OWNER netstests;
   exit
   ```
+  **Note:** You can use your own choices for role name, database name, password, host and port. Be sure to pass them through environment variables when running the docker container.
 
 - From within the project folder build the Docker image:
   ```bash
@@ -40,6 +41,17 @@ For production see the recommended option using [Docker](https://www.docker.com/
   ```bash
   docker run --network host -p 8000:8000 networkstests
   ```
+  **Note:** You might need to use you own names for database variables. The supported environment variables are:
+   - NETSTESTS_DBNAME
+   - NETSTESTS_DBUSER
+   - NETSTESTS_DBPASSWORD
+   - NETSTESTS_DBHOST
+   - NETSTESTS_DBPORT
+
+   Example:
+   ```
+   NETSTESTS_DBNAME=networks_tests NETSTESTS_DBUSER=netstests docker run --network host -p 8000:8000 networkstests
+   ```
 
 ### Step by step (ideal for development purposes)
 

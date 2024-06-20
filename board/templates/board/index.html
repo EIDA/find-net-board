@@ -11,6 +11,18 @@
 <body>
     <h1>Latest Tests</h1>
     <form id="search-form">
+        <fieldset>
+            <legend>Datacenters:</legend>
+            <label for="all-radio">
+                <input type="radio" id="all-radio" name="datacenter-filter" value="all" checked> All
+            </label>
+            <label for="eida-radio">
+                <input type="radio" id="eida-radio" name="datacenter-filter" value="eida"> EIDA
+            </label>
+            <label for="non-eida-radio">
+                <input type="radio" id="non-eida-radio" name="datacenter-filter" value="non-eida"> Non-EIDA
+            </label>
+        </fieldset>
         <label for="search-network">Network:</label>
         <input type="text" id="search-network" placeholder="Enter Network Code">
         <label for="start-date">Start Date:</label>
@@ -139,6 +151,7 @@
 <script>
     document.getElementById('search-form').addEventListener('submit', function(event) {
         event.preventDefault();
+        let datacenterFilter = document.querySelector('input[name="datacenter-filter"]:checked').value;
         let networkCode = document.getElementById('search-network').value.toUpperCase();
         let startDate = document.getElementById('start-date').value;
         let endDate = document.getElementById('end-date').value;
@@ -151,7 +164,7 @@
             hour12: true
         };
 
-        fetch('/board/search_tests/?network=' + networkCode + '&start=' + startDate + '&end=' + endDate)
+        fetch(`/board/search_tests/?datacenters=${datacenterFilter}&network=${networkCode}&start=${startDate}&end=${endDate}`)
             .then(response => response.json())
             .then(data => {
                 // Clear existing table rows

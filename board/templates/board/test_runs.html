@@ -6,9 +6,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Test Runs</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+        }
+
+        fieldset {
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
     <h1>Available Test Runs</h1>
+    <fieldset>
+        <legend>Datacenters:</legend>
+        <label for="all-radio">
+            <input type="radio" id="all-radio" name="filter" value="all" checked> All
+        </label>
+        <label for="eida-radio">
+            <input type="radio" id="eida-radio" name="filter" value="eida"> EIDA
+        </label>
+        <label for="non-eida-radio">
+            <input type="radio" id="non-eida-radio" name="filter" value="non-eida"> Non-EIDA
+        </label>
+    </fieldset>
     <table>
         <thead>
             <tr>
@@ -22,9 +46,9 @@
                 <th>XML DOI Match Test (%)</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="test-runs-body">
             {% for test_time in unique_test_times %}
-            <tr>
+            <tr data-filter="{{ test_time.filter_type }}">
                 <td>{{ test_time.test_time }}</td>
                 <td>{{ test_time.count }}</td>
                 <td>{{ test_time.null_fdsn_net_percentage|floatformat:2 }}</td>
@@ -37,5 +61,46 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input[name="filter"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    let filter = document.querySelector('input[name="filter"]:checked').value;
+                    let options = {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: 'numeric',
+                        hour12: true
+                    };
+                    fetch(`/board/tests/?datacenters=${filter}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            let tableBody = document.getElementById('test-runs-body');
+                            tableBody.innerHTML = '';
+                            data.unique_test_times.forEach(test_time => {
+                                let row = document.createElement('tr');
+                                row.innerHTML = `
+                                    <td>${(new Date(test_time.test_time)).toLocaleString(undefined, options)}</td>
+                                    <td>${test_time.count}</td>
+                                    <td>${test_time.null_fdsn_net_percentage.toFixed(2)}</td>
+                                    <td>${test_time.null_xml_net_percentage.toFixed(2)}</td>
+                                    <td>${test_time.null_eidarout_net_percentage.toFixed(2)}</td>
+                                    <td>${test_time.true_page_percentage.toFixed(2)}</td>
+                                    <td>${test_time.true_license_percentage.toFixed(2)}</td>
+                                    <td>${test_time.true_xml_doi_match_percentage.toFixed(2)}</td>
+                                `;
+                                tableBody.appendChild(row);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error fetching data:', error);
+                        });
+                });
+            });
+        });
+    </script>
 </body>
 </html>

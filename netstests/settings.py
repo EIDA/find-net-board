@@ -80,11 +80,11 @@ WSGI_APPLICATION = 'netstests.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DBNAME', 'networks_tests'),
-        'USER': os.getenv('DBUSER', 'netstests'),
-        'PASSWORD': os.getenv('DBPASSWORD', 'netstests'),
-        'HOST': os.getenv('DBHOST', '127.0.0.1'),
-        'PORT': os.getenv('DBPORT', '5433'),
+        'NAME': os.getenv('NETSTESTS_DBNAME', 'networks_tests'),
+        'USER': os.getenv('NETSTESTS_DBUSER', 'netstests'),
+        'PASSWORD': os.getenv('NETSTESTS_DBPASSWORD', 'netstests'),
+        'HOST': os.getenv('NETSTESTS_DBHOST', '127.0.0.1'),
+        'PORT': os.getenv('NETSTESTS_DBPORT', '5433'),
     }
 }
 

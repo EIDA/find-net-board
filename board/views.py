@@ -37,6 +37,7 @@ def search_tests(request):
     network_code = request.GET.get('network', None)
     start_date = request.GET.get('start', None)
     end_date = request.GET.get('end', None)
+    datacenters = request.GET.get('datacenters', 'all')
 
     tests = Consistency.objects.order_by('-test_time').all()
 
@@ -48,6 +49,11 @@ def search_tests(request):
 
     if end_date:
         tests = tests.filter(test_time__lte=end_date)
+
+    if datacenters == 'eida':
+        tests = tests.filter(Q(xml_net__isnull=False) | Q(eidarout_net__isnull=False))
+    elif datacenters == 'non-eida':
+        tests = tests.filter(Q(xml_net__isnull=True) & Q(eidarout_net__isnull=True))
 
     tests_data = []
     for test in tests:
@@ -78,7 +84,14 @@ def search_tests(request):
 
 # below view to show available test runs
 def test_runs(request):
-    unique_test_times = Consistency.objects.values('test_time').annotate(
+    datacenters = request.GET.get('datacenters', None)
+    tests = Consistency.objects.all()
+    if datacenters == 'eida':
+        tests = tests.filter(Q(xml_net__isnull=False) | Q(eidarout_net__isnull=False))
+    elif datacenters == 'non-eida':
+        tests = tests.filter(Q(xml_net__isnull=True) & Q(eidarout_net__isnull=True))
+
+    unique_test_times = tests.values('test_time').annotate(
         count=Count('test_time'),
         true_page_count=Count(Case(When(page_works=True, then=1))),
         true_license_count=Count(Case(When(has_license=True, then=1))),
@@ -95,7 +108,10 @@ def test_runs(request):
         null_eidarout_net_percentage=ExpressionWrapper((F('null_eidarout_net_count') * 100.0) / F('count'), output_field=FloatField())
     ).order_by('-test_time')
 
-    return render(request, "board/test_runs.html", {'unique_test_times': list(unique_test_times)})
+    if datacenters is None:
+        return render(request, "board/test_runs.html", {'unique_test_times': list(unique_test_times)})
+    else:
+        return JsonResponse({'unique_test_times': list(unique_test_times)})
 
 
 # below view to show tests of specific datacenter
