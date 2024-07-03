@@ -4,85 +4,89 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0002_rename_tests_test_and_more'),
+        ("board", "0002_rename_tests_test_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='datacenter',
-            name='station_url',
+            model_name="datacenter",
+            name="station_url",
             field=models.CharField(blank=True, max_length=300, null=True),
         ),
         migrations.AlterField(
-            model_name='datacite',
-            name='licenses',
+            model_name="datacite",
+            name="licenses",
             field=models.CharField(blank=True, max_length=500, null=True),
         ),
         migrations.AlterField(
-            model_name='datacite',
-            name='page',
+            model_name="datacite",
+            name="page",
             field=models.CharField(blank=True, max_length=300, null=True),
         ),
         migrations.AlterField(
-            model_name='datacite',
-            name='publisher',
+            model_name="datacite",
+            name="publisher",
             field=models.CharField(blank=True, max_length=300, null=True),
         ),
         migrations.AlterField(
-            model_name='network',
-            name='doi',
+            model_name="network",
+            name="doi",
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name='network',
-            name='enddate',
+            model_name="network",
+            name="enddate",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='routing',
-            name='priority',
+            model_name="routing",
+            name="priority",
             field=models.IntegerField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='routing',
-            name='source',
-            field=models.CharField(blank=True, choices=[('EIDA', 'EIDA'), ('FDSN', 'FDSN')], max_length=4, null=True),
+            model_name="routing",
+            name="source",
+            field=models.CharField(
+                blank=True,
+                choices=[("EIDA", "EIDA"), ("FDSN", "FDSN")],
+                max_length=4,
+                null=True,
+            ),
         ),
         migrations.AlterField(
-            model_name='stationxml',
-            name='doi',
+            model_name="stationxml",
+            name="doi",
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name='stationxml',
-            name='restriction',
+            model_name="stationxml",
+            name="restriction",
             field=models.CharField(blank=True, max_length=50, null=True),
         ),
         migrations.AlterField(
-            model_name='test',
-            name='doi',
+            model_name="test",
+            name="doi",
             field=models.CharField(blank=True, max_length=100, null=True),
         ),
         migrations.AlterField(
-            model_name='test',
-            name='has_license',
+            model_name="test",
+            name="has_license",
             field=models.BooleanField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='test',
-            name='page_works',
+            model_name="test",
+            name="page_works",
             field=models.BooleanField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='test',
-            name='xml_doi_match',
+            model_name="test",
+            name="xml_doi_match",
             field=models.BooleanField(blank=True, null=True),
         ),
         migrations.AlterField(
-            model_name='test',
-            name='xml_restriction_match',
+            model_name="test",
+            name="xml_restriction_match",
             field=models.BooleanField(blank=True, null=True),
         ),
     ]

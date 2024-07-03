@@ -5,25 +5,39 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0004_consistency_eida_routing_fdsn_registry_and_more'),
+        ("board", "0004_consistency_eida_routing_fdsn_registry_and_more"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='consistency',
-            name='eidarout_net',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='board.eida_routing'),
+            model_name="consistency",
+            name="eidarout_net",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="board.eida_routing",
+            ),
         ),
         migrations.AlterField(
-            model_name='consistency',
-            name='fdsn_net',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='board.fdsn_registry'),
+            model_name="consistency",
+            name="fdsn_net",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="board.fdsn_registry",
+            ),
         ),
         migrations.AlterField(
-            model_name='consistency',
-            name='xml_net',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='board.stationxml'),
+            model_name="consistency",
+            name="xml_net",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                to="board.stationxml",
+            ),
         ),
     ]

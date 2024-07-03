@@ -9,7 +9,9 @@ class Fdsn_registry(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['netcode', 'startdate'], name='unique_combination_fdsn_registry')
+            models.UniqueConstraint(
+                fields=["netcode", "startdate"], name="unique_combination_fdsn_registry"
+            )
         ]
 
     def __str__(self):
@@ -44,7 +46,10 @@ class Eida_routing(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['netcode', 'datacenter', 'startdate'], name='unique_combination_eida_routing')
+            models.UniqueConstraint(
+                fields=["netcode", "datacenter", "startdate"],
+                name="unique_combination_eida_routing",
+            )
         ]
 
     def __str__(self):
@@ -61,7 +66,10 @@ class Stationxml(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['datacenter', 'netcode', 'startdate'], name='unique_combination_stationxml')
+            models.UniqueConstraint(
+                fields=["datacenter", "netcode", "startdate"],
+                name="unique_combination_stationxml",
+            )
         ]
 
     def __str__(self):
@@ -70,9 +78,15 @@ class Stationxml(models.Model):
 
 class Consistency(models.Model):
     test_time = models.DateTimeField(null=False)
-    fdsn_net = models.ForeignKey(Fdsn_registry, on_delete=models.SET_NULL, null=True, blank=True)
-    eidarout_net = models.ForeignKey(Eida_routing, on_delete=models.SET_NULL, null=True, blank=True)
-    xml_net = models.ForeignKey(Stationxml, on_delete=models.SET_NULL, null=True, blank=True)
+    fdsn_net = models.ForeignKey(
+        Fdsn_registry, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    eidarout_net = models.ForeignKey(
+        Eida_routing, on_delete=models.SET_NULL, null=True, blank=True
+    )
+    xml_net = models.ForeignKey(
+        Stationxml, on_delete=models.SET_NULL, null=True, blank=True
+    )
     doi = models.CharField(max_length=100, null=True, blank=True)
     page_works = models.BooleanField(null=True, blank=True)
     has_license = models.BooleanField(null=True, blank=True)
@@ -80,7 +94,10 @@ class Consistency(models.Model):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=['test_time', 'fdsn_net', 'eidarout_net', 'xml_net'], name='unique_combination_consistency')
+            models.UniqueConstraint(
+                fields=["test_time", "fdsn_net", "eidarout_net", "xml_net"],
+                name="unique_combination_consistency",
+            )
         ]
 
     def __str__(self):

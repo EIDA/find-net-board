@@ -5,102 +5,166 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Datacenter',
+            name="Datacenter",
             fields=[
-                ('name', models.CharField(max_length=30, primary_key=True, serialize=False)),
-                ('station_url', models.CharField(max_length=300, null=True)),
+                (
+                    "name",
+                    models.CharField(max_length=30, primary_key=True, serialize=False),
+                ),
+                ("station_url", models.CharField(max_length=300, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Datacite',
+            name="Datacite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('licenses', models.CharField(max_length=500, null=True)),
-                ('page', models.CharField(max_length=300, null=True)),
-                ('publisher', models.CharField(max_length=300, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("licenses", models.CharField(max_length=500, null=True)),
+                ("page", models.CharField(max_length=300, null=True)),
+                ("publisher", models.CharField(max_length=300, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Network',
+            name="Network",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=10)),
-                ('startdate', models.DateField()),
-                ('enddate', models.DateField(null=True)),
-                ('doi', models.CharField(max_length=100, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code", models.CharField(max_length=10)),
+                ("startdate", models.DateField()),
+                ("enddate", models.DateField(null=True)),
+                ("doi", models.CharField(max_length=100, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Routing',
+            name="Routing",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('priority', models.IntegerField(null=True)),
-                ('source', models.CharField(choices=[('EIDA', 'EIDA'), ('FDSN', 'FDSN')], max_length=4, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("priority", models.IntegerField(null=True)),
+                (
+                    "source",
+                    models.CharField(
+                        choices=[("EIDA", "EIDA"), ("FDSN", "FDSN")],
+                        max_length=4,
+                        null=True,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Stationxml',
+            name="Stationxml",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('doi', models.CharField(max_length=100, null=True)),
-                ('restriction', models.CharField(max_length=50, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("doi", models.CharField(max_length=100, null=True)),
+                ("restriction", models.CharField(max_length=50, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Tests',
+            name="Tests",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('test_time', models.DateTimeField()),
-                ('doi', models.CharField(max_length=100, null=True)),
-                ('page_works', models.BooleanField(null=True)),
-                ('has_license', models.BooleanField(null=True)),
-                ('xml_doi_match', models.BooleanField(null=True)),
-                ('xml_restriction_match', models.BooleanField(null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("test_time", models.DateTimeField()),
+                ("doi", models.CharField(max_length=100, null=True)),
+                ("page_works", models.BooleanField(null=True)),
+                ("has_license", models.BooleanField(null=True)),
+                ("xml_doi_match", models.BooleanField(null=True)),
+                ("xml_restriction_match", models.BooleanField(null=True)),
             ],
         ),
         migrations.AddConstraint(
-            model_name='network',
-            constraint=models.UniqueConstraint(fields=('code', 'startdate'), name='unique_combination_network'),
+            model_name="network",
+            constraint=models.UniqueConstraint(
+                fields=("code", "startdate"), name="unique_combination_network"
+            ),
         ),
         migrations.AddField(
-            model_name='datacite',
-            name='network',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.network'),
+            model_name="datacite",
+            name="network",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.network"
+            ),
         ),
         migrations.AddField(
-            model_name='routing',
-            name='datacenter',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.datacenter'),
+            model_name="routing",
+            name="datacenter",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.datacenter"
+            ),
         ),
         migrations.AddField(
-            model_name='routing',
-            name='network',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.network'),
+            model_name="routing",
+            name="network",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.network"
+            ),
         ),
         migrations.AddField(
-            model_name='stationxml',
-            name='network',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.network'),
+            model_name="stationxml",
+            name="network",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.network"
+            ),
         ),
         migrations.AddField(
-            model_name='tests',
-            name='network',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.network'),
+            model_name="tests",
+            name="network",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.network"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='routing',
-            constraint=models.UniqueConstraint(fields=('network', 'datacenter'), name='unique_combination_routing'),
+            model_name="routing",
+            constraint=models.UniqueConstraint(
+                fields=("network", "datacenter"), name="unique_combination_routing"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='tests',
-            constraint=models.UniqueConstraint(fields=('test_time', 'network'), name='unique_combination_tests'),
+            model_name="tests",
+            constraint=models.UniqueConstraint(
+                fields=("test_time", "network"), name="unique_combination_tests"
+            ),
         ),
     ]

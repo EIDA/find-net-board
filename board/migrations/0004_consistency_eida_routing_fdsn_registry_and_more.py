@@ -5,140 +5,188 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('board', '0003_alter_datacenter_station_url_alter_datacite_licenses_and_more'),
+        ("board", "0003_alter_datacenter_station_url_alter_datacite_licenses_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='Consistency',
+            name="Consistency",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('test_time', models.DateTimeField()),
-                ('doi', models.CharField(blank=True, max_length=100, null=True)),
-                ('page_works', models.BooleanField(blank=True, null=True)),
-                ('has_license', models.BooleanField(blank=True, null=True)),
-                ('xml_doi_match', models.BooleanField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("test_time", models.DateTimeField()),
+                ("doi", models.CharField(blank=True, max_length=100, null=True)),
+                ("page_works", models.BooleanField(blank=True, null=True)),
+                ("has_license", models.BooleanField(blank=True, null=True)),
+                ("xml_doi_match", models.BooleanField(blank=True, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Eida_routing',
+            name="Eida_routing",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('netcode', models.CharField(max_length=10)),
-                ('startdate', models.DateField()),
-                ('enddate', models.DateField(blank=True, null=True)),
-                ('priority', models.IntegerField(blank=True, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("netcode", models.CharField(max_length=10)),
+                ("startdate", models.DateField()),
+                ("enddate", models.DateField(blank=True, null=True)),
+                ("priority", models.IntegerField(blank=True, null=True)),
             ],
         ),
         migrations.CreateModel(
-            name='Fdsn_registry',
+            name="Fdsn_registry",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('netcode', models.CharField(max_length=10)),
-                ('startdate', models.DateField()),
-                ('enddate', models.DateField(blank=True, null=True)),
-                ('doi', models.CharField(blank=True, max_length=100, null=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("netcode", models.CharField(max_length=10)),
+                ("startdate", models.DateField()),
+                ("enddate", models.DateField(blank=True, null=True)),
+                ("doi", models.CharField(blank=True, max_length=100, null=True)),
             ],
         ),
         migrations.RemoveField(
-            model_name='stationxml',
-            name='network',
+            model_name="stationxml",
+            name="network",
         ),
         migrations.RemoveField(
-            model_name='test',
-            name='network',
+            model_name="test",
+            name="network",
         ),
         migrations.RemoveField(
-            model_name='routing',
-            name='network',
+            model_name="routing",
+            name="network",
         ),
         migrations.RemoveField(
-            model_name='routing',
-            name='datacenter',
+            model_name="routing",
+            name="datacenter",
         ),
         migrations.AddField(
-            model_name='datacite',
-            name='date_available',
+            model_name="datacite",
+            name="date_available",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='stationxml',
-            name='datacenter',
-            field=models.ForeignKey(default=None, on_delete=django.db.models.deletion.CASCADE, to='board.datacenter'),
+            model_name="stationxml",
+            name="datacenter",
+            field=models.ForeignKey(
+                default=None,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="board.datacenter",
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='stationxml',
-            name='enddate',
+            model_name="stationxml",
+            name="enddate",
             field=models.DateField(blank=True, null=True),
         ),
         migrations.AddField(
-            model_name='stationxml',
-            name='netcode',
+            model_name="stationxml",
+            name="netcode",
             field=models.CharField(default=None, max_length=10),
             preserve_default=False,
         ),
         migrations.AddField(
-            model_name='stationxml',
-            name='startdate',
+            model_name="stationxml",
+            name="startdate",
             field=models.DateField(default=None),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='datacite',
-            name='licenses',
+            model_name="datacite",
+            name="licenses",
             field=models.JSONField(blank=True, null=True),
         ),
         migrations.AddConstraint(
-            model_name='stationxml',
-            constraint=models.UniqueConstraint(fields=('datacenter', 'netcode', 'startdate'), name='unique_combination_stationxml'),
+            model_name="stationxml",
+            constraint=models.UniqueConstraint(
+                fields=("datacenter", "netcode", "startdate"),
+                name="unique_combination_stationxml",
+            ),
         ),
         migrations.AddField(
-            model_name='consistency',
-            name='xml_net',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.stationxml'),
+            model_name="consistency",
+            name="xml_net",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.stationxml"
+            ),
         ),
         migrations.AddField(
-            model_name='eida_routing',
-            name='datacenter',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.datacenter'),
+            model_name="eida_routing",
+            name="datacenter",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.datacenter"
+            ),
         ),
         migrations.AddField(
-            model_name='consistency',
-            name='eidarout_net',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.eida_routing'),
+            model_name="consistency",
+            name="eidarout_net",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.eida_routing"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='fdsn_registry',
-            constraint=models.UniqueConstraint(fields=('netcode', 'startdate'), name='unique_combination_fdsn_registry'),
+            model_name="fdsn_registry",
+            constraint=models.UniqueConstraint(
+                fields=("netcode", "startdate"), name="unique_combination_fdsn_registry"
+            ),
         ),
         migrations.AddField(
-            model_name='consistency',
-            name='fdsn_net',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.fdsn_registry'),
+            model_name="consistency",
+            name="fdsn_net",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.fdsn_registry"
+            ),
         ),
         migrations.AlterField(
-            model_name='datacite',
-            name='network',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='board.fdsn_registry'),
+            model_name="datacite",
+            name="network",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE, to="board.fdsn_registry"
+            ),
         ),
         migrations.DeleteModel(
-            name='Test',
+            name="Test",
         ),
         migrations.DeleteModel(
-            name='Routing',
+            name="Routing",
         ),
         migrations.AddConstraint(
-            model_name='eida_routing',
-            constraint=models.UniqueConstraint(fields=('netcode', 'datacenter', 'startdate'), name='unique_combination_eida_routing'),
+            model_name="eida_routing",
+            constraint=models.UniqueConstraint(
+                fields=("netcode", "datacenter", "startdate"),
+                name="unique_combination_eida_routing",
+            ),
         ),
         migrations.AddConstraint(
-            model_name='consistency',
-            constraint=models.UniqueConstraint(fields=('test_time', 'fdsn_net', 'eidarout_net', 'xml_net'), name='unique_combination_consistency'),
+            model_name="consistency",
+            constraint=models.UniqueConstraint(
+                fields=("test_time", "fdsn_net", "eidarout_net", "xml_net"),
+                name="unique_combination_consistency",
+            ),
         ),
         migrations.DeleteModel(
-            name='Network',
+            name="Network",
         ),
     ]

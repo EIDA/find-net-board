@@ -14,8 +14,21 @@ celery = "^5.4.0"
 sw-django-utils = "^0.0.54"
 whitenoise = "^6.6.0"
 psycopg = "^3.1.19"
-
+pytest = "^8.2.2"
+pytest-django = "^4.8.0"
+ruff = "^0.5.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+lint.select = ["ALL"]
+lint.ignore = [
+  "ANN", # Missing-type-self
+  "COM812", # Missing-trailing-comma
+  "D",      # Docstrings stuff. Ignore for now
+  "ISC001", # As demanded by ruff format
+  "RUF012", # For django migration files
+]
+target-version = "py310"
