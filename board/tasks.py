@@ -1,4 +1,4 @@
-.lower()from celery import shared_task.lower()
+from celery import shared_task
 import requests
 import logging
 from urllib.parse import urlparse
