@@ -26,7 +26,10 @@ class Datacite(models.Model):
     date_available = models.DateField(null=True, blank=True)
 
     def __str__(self):
-        return f"({self.network.netcode}, {self.network.startdate}, {self.licenses}, {self.page}, {self.publisher}, {self.date_available})"
+        return (
+            f"({self.network.netcode}, {self.network.startdate}, "
+            f"{self.licenses}, {self.page}, {self.publisher}, {self.date_available})"
+        )
 
 
 class Datacenter(models.Model):
@@ -53,7 +56,10 @@ class Eida_routing(models.Model):
         ]
 
     def __str__(self):
-        return f"({self.netcode}, {self.datacenter.name}, {self.startdate}, {self.enddate}, {self.priority})"
+        return (
+            f"({self.netcode}, {self.datacenter.name}, {self.startdate}, "
+            f"{self.enddate}, {self.priority})"
+        )
 
 
 class Stationxml(models.Model):
@@ -73,7 +79,10 @@ class Stationxml(models.Model):
         ]
 
     def __str__(self):
-        return f"({self.datacenter.name}, {self.netcode}, {self.startdate}, {self.enddate}, {self.doi}, {self.restriction})"
+        return (
+            f"({self.datacenter.name}, {self.netcode}, {self.startdate}, "
+            f"{self.enddate}, {self.doi}, {self.restriction})"
+        )
 
 
 class Consistency(models.Model):
@@ -101,4 +110,20 @@ class Consistency(models.Model):
         ]
 
     def __str__(self):
-        return f"({self.test_time}, {f'{self.fdsn_net.netcode}-{self.fdsn_net.startdate.year}' if self.fdsn_net is not None else None}, {f'{self.eidarout_net.netcode}-{self.eidarout_net.startdate.year}' if self.eidarout_net is not None else None}, {f'{self.xml_net.netcode}-{self.xml_net.startdate.year}' if self.xml_net is not None else None}, {self.doi}, {self.page_works}, {self.has_license}, {self.xml_doi_match})"
+        fdsn_net_str = (
+            f"{self.fdsn_net.netcode}-{self.fdsn_net.startdate.year}"
+            if self.fdsn_net is not None else None
+        )
+        eidarout_net_str = (
+            f"{self.eidarout_net.netcode}-{self.eidarout_net.startdate.year}"
+            if self.eidarout_net is not None else None
+        )
+        xml_net_str = (
+            f"{self.xml_net.netcode}-{self.xml_net.startdate.year}"
+            if self.xml_net is not None else None
+        )
+        return (
+            f"({self.test_time}, {fdsn_net_str}, {eidarout_net_str}, "
+            f"{xml_net_str}, {self.doi}, {self.page_works}, "
+            f"{self.has_license}, {self.xml_doi_match})"
+        )

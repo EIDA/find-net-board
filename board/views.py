@@ -1,26 +1,26 @@
-from django.shortcuts import render
-from django.contrib.auth.decorators import user_passes_test
-from django.http import HttpResponse, JsonResponse
-from django.utils import timezone
-from django.db.models import Max, Count, Case, When, FloatField, F, Q, ExpressionWrapper
-
-from .models import (
-    Fdsn_registry,
-    Consistency,
-    Eida_routing,
-    Datacenter,
-    Datacite,
-    Stationxml,
-)
-
-import requests
 import logging
-from urllib.parse import urlparse
+import re
+import traceback
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from urllib.parse import urlparse
+
+import requests
 from alive_progress import alive_bar
-import traceback
-import re
+from django.contrib.auth.decorators import user_passes_test
+from django.db.models import Case, Count, ExpressionWrapper, F, FloatField, Max, Q, When
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render
+from django.utils import timezone
+
+from .models import (
+    Consistency,
+    Datacenter,
+    Datacite,
+    Eida_routing,
+    Fdsn_registry,
+    Stationxml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -112,9 +112,9 @@ def search_tests(request):
                     else test.eidarout_net.startdate
                 ),
                 "doi": test.doi,
-                "fdsn_net": True if test.fdsn_net is not None else False,
-                "xml_net": True if test.xml_net is not None else False,
-                "eidarout_net": True if test.eidarout_net is not None else False,
+                "fdsn_net": bool(test.fdsn_net is not None),
+                "xml_net": bool(test.xml_net is not None),
+                "eidarout_net": bool(test.eidarout_net is not None),
                 "page_works": test.page_works,
                 "has_license": test.has_license,
                 "xml_doi_match": test.xml_doi_match,
@@ -175,19 +175,21 @@ def test_runs(request):
     )
 
     if datacenters is None:
-        return render(
+        to_ret = render(
             request,
             "board/test_runs.html",
             {"unique_test_times": list(unique_test_times)},
         )
     else:
-        return JsonResponse({"unique_test_times": list(unique_test_times)})
+        to_ret = JsonResponse({"unique_test_times": list(unique_test_times)})
+
+    return to_ret
 
 
 # below view to show tests of specific datacenter
 def datacenter_tests(request, datacenter_name):
     try:
-        datacenter = Datacenter.objects.get(name=datacenter_name)
+        Datacenter.objects.get(name=datacenter_name)
     except Datacenter.DoesNotExist:
         return HttpResponse("<h1>Not Found</h1>Datacenter does not exist!", status=404)
     start_date = request.GET.get("start", None)
@@ -220,7 +222,8 @@ def datacenter_tests(request, datacenter_name):
         elif consistency.eidarout_net is not None and re.match(
             r"^[0-9XYZ]", consistency.eidarout_net.netcode
         ):
-            netcode = f"{consistency.eidarout_net.netcode}{consistency.eidarout_net.startdate.year}"
+            net = consistency.eidarout_net
+            netcode = f"{net.netcode}{net.startdate.year}"
         else:
             netcode = (
                 consistency.xml_net.netcode
@@ -235,9 +238,9 @@ def datacenter_tests(request, datacenter_name):
                 if consistency.xml_net is not None
                 else consistency.eidarout_net.startdate,
                 "doi": consistency.doi,
-                "fdsn_net": True if consistency.fdsn_net is not None else False,
-                "xml_net": True if consistency.xml_net is not None else False,
-                "eidarout_net": True if consistency.eidarout_net is not None else False,
+                "fdsn_net": bool(consistency.fdsn_net is not None),
+                "xml_net": bool(consistency.xml_net is not None),
+                "eidarout_net": bool(consistency.eidarout_net is not None),
                 "page_works": consistency.page_works,
                 "has_license": consistency.has_license,
                 "xml_doi_match": consistency.xml_doi_match,
@@ -265,7 +268,9 @@ def run_tests(request):
                 fdsn_end = (
                     net.enddate
                     if net.enddate is not None
-                    else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+                    else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
                 )
                 routings = Eida_routing.objects.filter(
                     netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
@@ -276,10 +281,10 @@ def run_tests(request):
                 else:
                     try:
                         r = requests.get(datacite.page, timeout=10)
-                        page_works = True if r.status_code == 200 else False
-                    except Exception:
+                        page_works = bool(r.status_code == 200)
+                    except requests.exceptions.RequestException:
                         page_works = False
-                    has_license = True if datacite.licenses is not None else False
+                    has_license = bool(datacite.licenses is not None)
                 if not routings.exists():
                     xmls = Stationxml.objects.filter(
                         netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
@@ -314,7 +319,9 @@ def run_tests(request):
                         rout_end = (
                             rout.enddate
                             if rout.enddate is not None
-                            else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+                            else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                            .astimezone(datetime.timezone.utc)
+                            .date()
                         )
                         start_search = min(rout.startdate, net.startdate)
                         end_search = max(rout_end, fdsn_end)
@@ -388,7 +395,7 @@ def run_tests(request):
                 pbar()
     except Exception as e:
         traceback.print_exc()
-        logger.error(e)
+        logger.exception()
         return HttpResponse(str(e), status=500)
     return HttpResponse(status=200)
 
@@ -402,20 +409,24 @@ def update_db_from_sources(request):
         get_EIDA_routing()
     except Exception as e:
         traceback.print_exc()
-        logger.error(e)
+        logger.exception()
         return HttpResponse(str(e), status=500)
     return HttpResponse(status=200)
 
 
 def get_FDSN_networks():
     logger.info("Getting all networks from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/networks/1/query")
+    r = requests.get("https://www.fdsn.org/ws/networks/1/query", timeout=20)
     with alive_bar(len(r.json()["networks"])) as pbar:
         for net in r.json()["networks"]:
             doi = net["doi"] if net["doi"] else None
-            start = datetime.strptime(net["start_date"], "%Y-%m-%d")
+            start = datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
+                datetime.timezone.utc
+            )
             end = (
-                datetime.strptime(net["end_date"], "%Y-%m-%d")
+                datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
+                    datetime.timezone.utc
+                )
                 if net["end_date"]
                 else None
             )
@@ -431,7 +442,7 @@ def get_FDSN_networks():
 
 def update_datacite_table(net):
     dataciteapi = "https://api.datacite.org/application/vnd.datacite.datacite+json/"
-    r = requests.get(dataciteapi + net.doi)
+    r = requests.get(dataciteapi + net.doi, timeout=20)
     datacite = r.json()
     licenses = datacite.get("rightsList") if datacite.get("rightsList") != [] else None
     publisher = datacite["publisher"].get("name") if "publisher" in datacite else None
@@ -455,7 +466,7 @@ def update_datacite_table(net):
 
 def get_FDSN_datacenters():
     logger.info("Getting all datacenters from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query")
+    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query", timeout=20)
     with alive_bar(len(r.json()["datacenters"])) as pbar:
         for dc in r.json()["datacenters"]:
             station_url = None
@@ -491,7 +502,8 @@ def get_FDSN_datacenters():
 def update_stationxml_table(datacenter):
     try:
         r = requests.get(
-            f"https://{datacenter.station_url}/fdsnws/station/1/query?level=network"
+            f"https://{datacenter.station_url}/fdsnws/station/1/query?level=network",
+            timeout=20,
         )
         root = ET.fromstring(r.text)
     except Exception:
@@ -500,49 +512,71 @@ def update_stationxml_table(datacenter):
     networks = root.findall("./ns:Network", namespaces=namespace)
     for n in networks:
         try:
-            net_start = datetime.strptime(
-                n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S"
-            ).date()
-        except:
+            net_start = (
+                datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S")
+                .astimezone(datetime.timezone.utc)
+                .date()
+            )
+        except Exception:
             try:
-                net_start = datetime.strptime(
-                    n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ"
-                ).date()
-            except:
+                net_start = (
+                    datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
                 try:
-                    net_start = datetime.strptime(
-                        n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f"
-                    ).date()
-                except:
+                    net_start = (
+                        datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                except Exception:
                     try:
-                        net_start = datetime.strptime(
-                            n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%fZS"
-                        ).date()
-                    except:
+                        net_start = (
+                            datetime.strptime(
+                                n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%fZS"
+                            )
+                            .astimezone(datetime.timezone.utc)
+                            .date()
+                        )
+                    except Exception:
                         net_start = n.attrib["startDate"][:10]
         try:
-            net_end = datetime.strptime(
-                n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S"
-            ).date()
-        except:
+            net_end = (
+                datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S")
+                .astimezone(datetime.timezone.utc)
+                .date()
+            )
+        except Exception:
             try:
-                net_end = datetime.strptime(
-                    n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%SZ"
-                ).date()
-            except:
+                net_end = (
+                    datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%SZ")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
                 try:
-                    net_end = datetime.strptime(
-                        n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%f"
-                    ).date()
-                except:
+                    net_end = (
+                        datetime.strptime(
+                            n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%f"
+                        )
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                except Exception:
                     try:
-                        net_end = datetime.strptime(
-                            n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%fZS"
-                        ).date()
-                    except:
+                        net_end = (
+                            datetime.strptime(
+                                n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%fZS"
+                            )
+                            .astimezone(datetime.timezone.utc)
+                            .date()
+                        )
+                    except Exception:
                         try:
                             net_end = n.attrib.get("endDate")[:10]
-                        except:
+                        except Exception:
                             net_end = None
         doi = n.find("./ns:Identifier", namespaces=namespace)
         doi = doi.text if doi is not None and len(doi.text) < 100 else None
@@ -561,34 +595,40 @@ def update_stationxml_table(datacenter):
 def get_EIDA_routing():
     logger.info("Getting EIDA routing information")
     r = requests.get(
-        "https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station"
+        "https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station",
+        timeout=20,
     )
     with alive_bar(len(r.json())) as pbar:
         for dc in r.json():
             # get datacenter from database
-            try:
-                datacenter = Datacenter.objects.get(
-                    station_url=urlparse(dc["url"]).netloc
-                )
-            except:
-                print(dc["url"])
+            datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
             for net in dc["params"]:
                 try:
-                    net_start = datetime.strptime(
-                        net["start"], "%Y-%m-%dT%H:%M:%S"
-                    ).date()
-                except:
-                    net_start = datetime.strptime(
-                        net["start"], "%Y-%m-%dT%H:%M:%S.%f"
-                    ).date()
+                    net_start = (
+                        datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                except Exception:
+                    net_start = (
+                        datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
                 try:
-                    net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S").date()
-                except:
+                    net_end = (
+                        datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                except Exception:
                     try:
-                        net_end = datetime.strptime(
-                            net["end"], "%Y-%m-%dT%H:%M:%S.%f"
-                        ).date()
-                    except:
+                        net_end = (
+                            datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
+                            .astimezone(datetime.timezone.utc)
+                            .date()
+                        )
+                    except Exception:
                         net_end = None
                 Eida_routing.objects.update_or_create(
                     netcode=net["net"],

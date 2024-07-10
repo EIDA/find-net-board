@@ -1,21 +1,21 @@
-from celery import shared_task
-import requests
 import logging
-from urllib.parse import urlparse
-import xml.etree.ElementTree as ET
 from datetime import datetime
-from django.utils import timezone
-import traceback
+from urllib.parse import urlparse
 
+import requests
+from celery import shared_task
+from django.db.models import Q
+from django.utils import timezone
+
+from .views import update_datacite_table, update_stationxml_table
 from .models import (
-    Fdsn_registry,
     Consistency,
-    Eida_routing,
     Datacenter,
     Datacite,
+    Eida_routing,
+    Fdsn_registry,
     Stationxml,
 )
-from .views import update_datacite_table, update_stationxml_table
 
 logger = logging.getLogger(__name__)
 
@@ -23,12 +23,18 @@ logger = logging.getLogger(__name__)
 @shared_task
 def update_and_run():
     logger.info("Getting all networks from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/networks/1/query")
+    r = requests.get("https://www.fdsn.org/ws/networks/1/query", timeout=20)
     for net in r.json()["networks"]:
         doi = net["doi"] if net["doi"] else None
-        start = datetime.strptime(net["start_date"], "%Y-%m-%d")
+        start = datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
+            datetime.timezone.utc
+        )
         end = (
-            datetime.strptime(net["end_date"], "%Y-%m-%d") if net["end_date"] else None
+            datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
+                datetime.timezone.utc
+            )
+            if net["end_date"]
+            else None
         )
         obj, created = Fdsn_registry.objects.update_or_create(
             netcode=net["fdsn_code"],
@@ -39,7 +45,7 @@ def update_and_run():
             update_datacite_table(obj)
 
     logger.info("Getting all datacenters from FDSN and updating database")
-    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query")
+    r = requests.get("https://www.fdsn.org/ws/datacenters/1/query", timeout=20)
     for dc in r.json()["datacenters"]:
         station_url = None
         for r in dc["repositories"]:
@@ -71,29 +77,39 @@ def update_and_run():
 
     logger.info("Getting EIDA routing information")
     r = requests.get(
-        "https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station"
+        "https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station",
+        timeout=20,
     )
     for dc in r.json():
         # get datacenter from database
-        try:
-            datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
-        except:
-            print(dc["url"])
+        datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
         for net in dc["params"]:
             try:
-                net_start = datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S").date()
-            except:
-                net_start = datetime.strptime(
-                    net["start"], "%Y-%m-%dT%H:%M:%S.%f"
-                ).date()
+                net_start = (
+                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
+                net_start = (
+                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
             try:
-                net_end = datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S").date()
-            except:
+                net_end = (
+                    datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
                 try:
-                    net_end = datetime.strptime(
-                        net["end"], "%Y-%m-%dT%H:%M:%S.%f"
-                    ).date()
-                except:
+                    net_end = (
+                        datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                except Exception:
                     net_end = None
             Eida_routing.objects.update_or_create(
                 netcode=net["net"],
@@ -111,7 +127,9 @@ def update_and_run():
         fdsn_end = (
             net.enddate
             if net.enddate is not None
-            else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+            else datetime.strptime("2100-01-01", "%Y-%m-%d")
+            .astimezone(datetime.timezone.utc)
+            .date()
         )
         routings = Eida_routing.objects.filter(
             netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
@@ -122,10 +140,10 @@ def update_and_run():
         else:
             try:
                 r = requests.get(datacite.page, timeout=10)
-                page_works = True if r.status_code == 200 else False
-            except Exception:
+                page_works = bool(r.status_code == 200)
+            except requests.exceptions.RequestException:
                 page_works = False
-            has_license = True if datacite.licenses is not None else False
+            has_license = bool(datacite.licenses is not None)
         if not routings.exists():
             xmls = Stationxml.objects.filter(
                 netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
@@ -160,7 +178,9 @@ def update_and_run():
                 rout_end = (
                     rout.enddate
                     if rout.enddate is not None
-                    else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+                    else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
                 )
                 start_search = min(rout.startdate, net.startdate)
                 end_search = max(rout_end, fdsn_end)

@@ -1,13 +1,11 @@
+import requests
 from django.test import TestCase
 from django.utils import timezone
-import requests
 
 from .models import (
-    Fdsn_registry,
     Consistency,
-    Eida_routing,
     Datacenter,
-    Datacite,
+    Fdsn_registry,
     Stationxml,
 )
 
@@ -18,9 +16,9 @@ class TestModelConsistency(TestCase):
         test that a page of an fdsn network works
         """
         try:
-            r = requests.get("https://www.fdsn.org/networks/detail/HL/")
-            page_works = True if r.status_code == 200 else False
-        except Exception:
+            r = requests.get("https://www.fdsn.org/networks/detail/HL/", timeout=20)
+            page_works = bool(r.status_code == 200)
+        except requests.exceptions.RequestException:
             page_works = False
         self.assertIs(page_works, True)
 
@@ -29,9 +27,11 @@ class TestModelConsistency(TestCase):
         test that a page of an fdsn network does not work
         """
         try:
-            r = requests.get("https://www.fdsn.org/networks/detail/NONEXISTENTNETWORK/")
-            page_works = True if r.status_code == 200 else False
-        except Exception:
+            r = requests.get(
+                "https://www.fdsn.org/networks/detail/NONEXISTENTNETWORK/", timeout=20
+            )
+            page_works = bool(r.status_code == 200)
+        except requests.exceptions.RequestException:
             page_works = False
         self.assertIs(page_works, False)
 

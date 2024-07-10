@@ -1,11 +1,11 @@
 from django.contrib import admin
 
 from .models import (
-    Fdsn_registry,
     Consistency,
-    Eida_routing,
     Datacenter,
     Datacite,
+    Eida_routing,
+    Fdsn_registry,
     Stationxml,
 )
 
