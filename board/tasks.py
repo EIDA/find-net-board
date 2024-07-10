@@ -108,69 +108,31 @@ def update_and_run():
     # starting from Fdsn_registry table
     logger.info("Making consistency checks starting from FDSN registry")
     for net in Fdsn_registry.objects.all():
-        if net.netcode not in ["HA", "HI"]:
-            fdsn_end = (
-                net.enddate
-                if net.enddate is not None
-                else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
-            )
-            routings = Eida_routing.objects.filter(
+        fdsn_end = (
+            net.enddate
+            if net.enddate is not None
+            else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+        )
+        routings = Eida_routing.objects.filter(
+            netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
+        )
+        datacite = Datacite.objects.filter(network=net).first()
+        if datacite is None:
+            page_works, has_license = None, None
+        else:
+            try:
+                r = requests.get(datacite.page, timeout=10)
+                page_works = True if r.status_code == 200 else False
+            except Exception:
+                page_works = False
+            has_license = True if datacite.licenses is not None else False
+        if not routings.exists():
+            xmls = Stationxml.objects.filter(
                 netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
             )
-            datacite = Datacite.objects.filter(network=net).first()
-            if datacite is None:
-                page_works, has_license = None, None
-            else:
-                try:
-                    r = requests.get(datacite.page, timeout=10)
-                    page_works = True if r.status_code == 200 else False
-                except Exception:
-                    page_works = False
-                has_license = True if datacite.licenses is not None else False
-            if not routings.exists():
-                xmls = Stationxml.objects.filter(
-                    netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
-                )
-                if xmls.exists():
-                    for xml in xmls:
-                        if net.doi is None:
-                            doi_match = None
-                        elif xml.doi is None:
-                            doi_match = False
-                        else:
-                            doi_match = net.doi.lower() == xml.doi.lower()
-                        Consistency(
-                            test_time=current_time,
-                            fdsn_net=net,
-                            xml_net=xml,
-                            doi=net.doi,
-                            page_works=page_works,
-                            has_license=has_license,
-                            xml_doi_match=doi_match,
-                        ).save()
-                else:
-                    Consistency(
-                        test_time=current_time,
-                        fdsn_net=net,
-                        doi=net.doi,
-                        page_works=page_works,
-                        has_license=has_license,
-                    ).save()
-            else:
-                for rout in routings:
-                    rout_end = (
-                        rout.enddate
-                        if rout.enddate is not None
-                        else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
-                    )
-                    start_search = min(rout.startdate, net.startdate)
-                    end_search = max(rout_end, fdsn_end)
-                    xml = Stationxml.objects.filter(
-                        datacenter=rout.datacenter.name,
-                        netcode=rout.netcode,
-                        startdate__range=(start_search, end_search),
-                    ).first()
-                    if net.doi is None or xml is None:
+            if xmls.exists():
+                for xml in xmls:
+                    if net.doi is None:
                         doi_match = None
                     elif xml.doi is None:
                         doi_match = False
@@ -179,13 +141,50 @@ def update_and_run():
                     Consistency(
                         test_time=current_time,
                         fdsn_net=net,
-                        eidarout_net=rout,
-                        xml_net=xml if xml is not None else None,
+                        xml_net=xml,
                         doi=net.doi,
                         page_works=page_works,
                         has_license=has_license,
                         xml_doi_match=doi_match,
                     ).save()
+            else:
+                Consistency(
+                    test_time=current_time,
+                    fdsn_net=net,
+                    doi=net.doi,
+                    page_works=page_works,
+                    has_license=has_license,
+                ).save()
+        else:
+            for rout in routings:
+                rout_end = (
+                    rout.enddate
+                    if rout.enddate is not None
+                    else datetime.strptime("2100-01-01", "%Y-%m-%d").date()
+                )
+                start_search = min(rout.startdate, net.startdate)
+                end_search = max(rout_end, fdsn_end)
+                xml = Stationxml.objects.filter(
+                    datacenter=rout.datacenter.name,
+                    netcode=rout.netcode,
+                    startdate__range=(start_search, end_search),
+                ).first()
+                if net.doi is None or xml is None:
+                    doi_match = None
+                elif xml.doi is None:
+                    doi_match = False
+                else:
+                    doi_match = net.doi.lower() == xml.doi.lower()
+                Consistency(
+                    test_time=current_time,
+                    fdsn_net=net,
+                    eidarout_net=rout,
+                    xml_net=xml if xml is not None else None,
+                    doi=net.doi,
+                    page_works=page_works,
+                    has_license=has_license,
+                    xml_doi_match=doi_match,
+                ).save()
     # starting from Stationxml table
     logger.info("Making consistency checks starting from StationXML files")
     unlinked_stationxml = Stationxml.objects.filter(
@@ -196,25 +195,24 @@ def update_and_run():
         )
     )
     for net in unlinked_stationxml:
-        if net.netcode != "HA":
-            routings = Eida_routing.objects.filter(
-                Q(
-                    netcode=net.netcode,
-                    startdate__lte=net.startdate,
-                    enddate__gte=net.startdate,
-                )
-                | Q(
-                    netcode=net.netcode,
-                    startdate__lte=net.startdate,
-                    enddate__isnull=True,
-                )
+        routings = Eida_routing.objects.filter(
+            Q(
+                netcode=net.netcode,
+                startdate__lte=net.startdate,
+                enddate__gte=net.startdate,
             )
-            if not routings.exists():
-                Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
-            for rout in routings:
-                Consistency(
-                    test_time=current_time, xml_net=net, eidarout_net=rout, doi=net.doi
-                ).save()
+            | Q(
+                netcode=net.netcode,
+                startdate__lte=net.startdate,
+                enddate__isnull=True,
+            )
+        )
+        if not routings.exists():
+            Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
+        for rout in routings:
+            Consistency(
+                test_time=current_time, xml_net=net, eidarout_net=rout, doi=net.doi
+            ).save()
     # starting from Eida_routing table
     logger.info("Making consistency checks starting from EIDA routing registry")
     unlinked_routing = Eida_routing.objects.filter(
