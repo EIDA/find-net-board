@@ -6,7 +6,7 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 import requests
-from alive_progress import alive_bar
+from tqdm import tqdm
 from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Case, Count, ExpressionWrapper, F, FloatField, Max, Q, When
 from django.http import HttpResponse, JsonResponse
@@ -263,74 +263,34 @@ def run_tests(request):
         current_time = timezone.now().replace(microsecond=0)
         # starting from Fdsn_registry table
         logger.info("Making consistency checks starting from FDSN registry")
-        with alive_bar(len(Fdsn_registry.objects.all())) as pbar:
-            for net in Fdsn_registry.objects.all():
-                fdsn_end = (
-                    net.enddate
-                    if net.enddate is not None
-                    else datetime.strptime("2100-01-01", "%Y-%m-%d")
-                    .astimezone(datetime.timezone.utc)
-                    .date()
-                )
-                routings = Eida_routing.objects.filter(
+        for net in tqdm(Fdsn_registry.objects.all(), desc="Processing"):
+            fdsn_end = (
+                net.enddate
+                if net.enddate is not None
+                else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                .astimezone(datetime.timezone.utc)
+                .date()
+            )
+            routings = Eida_routing.objects.filter(
+                netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
+            )
+            datacite = Datacite.objects.filter(network=net).first()
+            if datacite is None:
+                page_works, has_license = None, None
+            else:
+                try:
+                    r = requests.get(datacite.page, timeout=10)
+                    page_works = bool(r.status_code == 200)
+                except requests.exceptions.RequestException:
+                    page_works = False
+                has_license = bool(datacite.licenses is not None)
+            if not routings.exists():
+                xmls = Stationxml.objects.filter(
                     netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
                 )
-                datacite = Datacite.objects.filter(network=net).first()
-                if datacite is None:
-                    page_works, has_license = None, None
-                else:
-                    try:
-                        r = requests.get(datacite.page, timeout=10)
-                        page_works = bool(r.status_code == 200)
-                    except requests.exceptions.RequestException:
-                        page_works = False
-                    has_license = bool(datacite.licenses is not None)
-                if not routings.exists():
-                    xmls = Stationxml.objects.filter(
-                        netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
-                    )
-                    if xmls.exists():
-                        for xml in xmls:
-                            if net.doi is None:
-                                doi_match = None
-                            elif xml.doi is None:
-                                doi_match = False
-                            else:
-                                doi_match = net.doi.lower() == xml.doi.lower()
-                            Consistency(
-                                test_time=current_time,
-                                fdsn_net=net,
-                                xml_net=xml,
-                                doi=net.doi,
-                                page_works=page_works,
-                                has_license=has_license,
-                                xml_doi_match=doi_match,
-                            ).save()
-                    else:
-                        Consistency(
-                            test_time=current_time,
-                            fdsn_net=net,
-                            doi=net.doi,
-                            page_works=page_works,
-                            has_license=has_license,
-                        ).save()
-                else:
-                    for rout in routings:
-                        rout_end = (
-                            rout.enddate
-                            if rout.enddate is not None
-                            else datetime.strptime("2100-01-01", "%Y-%m-%d")
-                            .astimezone(datetime.timezone.utc)
-                            .date()
-                        )
-                        start_search = min(rout.startdate, net.startdate)
-                        end_search = max(rout_end, fdsn_end)
-                        xml = Stationxml.objects.filter(
-                            datacenter=rout.datacenter.name,
-                            netcode=rout.netcode,
-                            startdate__range=(start_search, end_search),
-                        ).first()
-                        if net.doi is None or xml is None:
+                if xmls.exists():
+                    for xml in xmls:
+                        if net.doi is None:
                             doi_match = None
                         elif xml.doi is None:
                             doi_match = False
@@ -339,14 +299,52 @@ def run_tests(request):
                         Consistency(
                             test_time=current_time,
                             fdsn_net=net,
-                            eidarout_net=rout,
-                            xml_net=xml if xml is not None else None,
+                            xml_net=xml,
                             doi=net.doi,
                             page_works=page_works,
                             has_license=has_license,
                             xml_doi_match=doi_match,
                         ).save()
-                pbar()
+                else:
+                    Consistency(
+                        test_time=current_time,
+                        fdsn_net=net,
+                        doi=net.doi,
+                        page_works=page_works,
+                        has_license=has_license,
+                    ).save()
+            else:
+                for rout in routings:
+                    rout_end = (
+                        rout.enddate
+                        if rout.enddate is not None
+                        else datetime.strptime("2100-01-01", "%Y-%m-%d")
+                        .astimezone(datetime.timezone.utc)
+                        .date()
+                    )
+                    start_search = min(rout.startdate, net.startdate)
+                    end_search = max(rout_end, fdsn_end)
+                    xml = Stationxml.objects.filter(
+                        datacenter=rout.datacenter.name,
+                        netcode=rout.netcode,
+                        startdate__range=(start_search, end_search),
+                    ).first()
+                    if net.doi is None or xml is None:
+                        doi_match = None
+                    elif xml.doi is None:
+                        doi_match = False
+                    else:
+                        doi_match = net.doi.lower() == xml.doi.lower()
+                    Consistency(
+                        test_time=current_time,
+                        fdsn_net=net,
+                        eidarout_net=rout,
+                        xml_net=xml if xml is not None else None,
+                        doi=net.doi,
+                        page_works=page_works,
+                        has_license=has_license,
+                        xml_doi_match=doi_match,
+                    ).save()
         # starting from Stationxml table
         logger.info("Making consistency checks starting from StationXML files")
         unlinked_stationxml = Stationxml.objects.filter(
@@ -356,30 +354,28 @@ def run_tests(request):
                 .values_list("xml_net_id", flat=True)
             )
         )
-        with alive_bar(len(unlinked_stationxml)) as pbar:
-            for net in unlinked_stationxml:
-                routings = Eida_routing.objects.filter(
-                    Q(
-                        netcode=net.netcode,
-                        startdate__lte=net.startdate,
-                        enddate__gte=net.startdate,
-                    )
-                    | Q(
-                        netcode=net.netcode,
-                        startdate__lte=net.startdate,
-                        enddate__isnull=True,
-                    )
+        for net in tqdm(unlinked_stationxml, desc="Processing"):
+            routings = Eida_routing.objects.filter(
+                Q(
+                    netcode=net.netcode,
+                    startdate__lte=net.startdate,
+                    enddate__gte=net.startdate,
                 )
-                if not routings.exists():
-                    Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
-                for rout in routings:
-                    Consistency(
-                        test_time=current_time,
-                        xml_net=net,
-                        eidarout_net=rout,
-                        doi=net.doi,
-                    ).save()
-                pbar()
+                | Q(
+                    netcode=net.netcode,
+                    startdate__lte=net.startdate,
+                    enddate__isnull=True,
+                )
+            )
+            if not routings.exists():
+                Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
+            for rout in routings:
+                Consistency(
+                    test_time=current_time,
+                    xml_net=net,
+                    eidarout_net=rout,
+                    doi=net.doi,
+                ).save()
         # starting from Eida_routing table
         logger.info("Making consistency checks starting from EIDA routing registry")
         unlinked_routing = Eida_routing.objects.filter(
@@ -389,10 +385,8 @@ def run_tests(request):
                 .values_list("eidarout_net_id", flat=True)
             )
         )
-        with alive_bar(len(unlinked_routing)) as pbar:
-            for net in unlinked_routing:
-                Consistency(test_time=current_time, eidarout_net=net).save()
-                pbar()
+        for net in tqdm(unlinked_routing, desc="Processing"):
+            Consistency(test_time=current_time, eidarout_net=net).save()
     except Exception as e:
         traceback.print_exc()
         logger.exception()
@@ -417,27 +411,25 @@ def update_db_from_sources(request):
 def get_FDSN_networks():
     logger.info("Getting all networks from FDSN and updating database")
     r = requests.get("https://www.fdsn.org/ws/networks/1/query", timeout=20)
-    with alive_bar(len(r.json()["networks"])) as pbar:
-        for net in r.json()["networks"]:
-            doi = net["doi"] if net["doi"] else None
-            start = datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
+    for net in tqdm(r.json()["networks"], desc="Processing"):
+        doi = net["doi"] if net["doi"] else None
+        start = datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
+            datetime.timezone.utc
+        )
+        end = (
+            datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
                 datetime.timezone.utc
             )
-            end = (
-                datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
-                    datetime.timezone.utc
-                )
-                if net["end_date"]
-                else None
-            )
-            obj, created = Fdsn_registry.objects.update_or_create(
-                netcode=net["fdsn_code"],
-                startdate=start,
-                defaults={"enddate": end, "doi": doi},
-            )
-            if net["doi"] != "":
-                update_datacite_table(obj)
-            pbar()
+            if net["end_date"]
+            else None
+        )
+        obj, created = Fdsn_registry.objects.update_or_create(
+            netcode=net["fdsn_code"],
+            startdate=start,
+            defaults={"enddate": end, "doi": doi},
+        )
+        if net["doi"] != "":
+            update_datacite_table(obj)
 
 
 def update_datacite_table(net):
@@ -467,36 +459,34 @@ def update_datacite_table(net):
 def get_FDSN_datacenters():
     logger.info("Getting all datacenters from FDSN and updating database")
     r = requests.get("https://www.fdsn.org/ws/datacenters/1/query", timeout=20)
-    with alive_bar(len(r.json()["datacenters"])) as pbar:
-        for dc in r.json()["datacenters"]:
-            station_url = None
-            for r in dc["repositories"]:
-                for s in r["services"]:
-                    if s["name"] == "fdsnws-station-1":
-                        station_url = s["url"]
-            datacenter = Datacenter(
-                name=dc["name"],
-                station_url=urlparse(station_url).netloc
-                if station_url is not None
-                else None,
-            )
-            datacenter.save()
-            if dc["name"] in [
-                "GEOFON",
-                "ODC",
-                "ETH",
-                "RESIF",
-                "INGV",
-                "LMU",
-                "ICGC",
-                "NOA",
-                "BGR",
-                "NIEP",
-                "KOERI",
-                "UIB-NORSAR",
-            ]:
-                update_stationxml_table(datacenter)
-            pbar()
+    for dc in tqdm(r.json()["datacenters"], desc="Processing"):
+        station_url = None
+        for r in dc["repositories"]:
+            for s in r["services"]:
+                if s["name"] == "fdsnws-station-1":
+                    station_url = s["url"]
+        datacenter = Datacenter(
+            name=dc["name"],
+            station_url=urlparse(station_url).netloc
+            if station_url is not None
+            else None,
+        )
+        datacenter.save()
+        if dc["name"] in [
+            "GEOFON",
+            "ODC",
+            "ETH",
+            "RESIF",
+            "INGV",
+            "LMU",
+            "ICGC",
+            "NOA",
+            "BGR",
+            "NIEP",
+            "KOERI",
+            "UIB-NORSAR",
+        ]:
+            update_stationxml_table(datacenter)
 
 
 def update_stationxml_table(datacenter):
@@ -598,42 +588,40 @@ def get_EIDA_routing():
         "https://www.orfeus-eu.org/eidaws/routing/1/query?format=json&service=station",
         timeout=20,
     )
-    with alive_bar(len(r.json())) as pbar:
-        for dc in r.json():
-            # get datacenter from database
-            datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
-            for net in dc["params"]:
-                try:
-                    net_start = (
-                        datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
-                        .astimezone(datetime.timezone.utc)
-                        .date()
-                    )
-                except Exception:
-                    net_start = (
-                        datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
-                        .astimezone(datetime.timezone.utc)
-                        .date()
-                    )
+    for dc in tqdm(r.json(), desc="Processing"):
+        # get datacenter from database
+        datacenter = Datacenter.objects.get(station_url=urlparse(dc["url"]).netloc)
+        for net in dc["params"]:
+            try:
+                net_start = (
+                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
+                net_start = (
+                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            try:
+                net_end = (
+                    datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+            except Exception:
                 try:
                     net_end = (
-                        datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
+                        datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
                         .astimezone(datetime.timezone.utc)
                         .date()
                     )
                 except Exception:
-                    try:
-                        net_end = (
-                            datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
-                            .astimezone(datetime.timezone.utc)
-                            .date()
-                        )
-                    except Exception:
-                        net_end = None
-                Eida_routing.objects.update_or_create(
-                    netcode=net["net"],
-                    datacenter=datacenter,
-                    startdate=net_start,
-                    defaults={"enddate": net_end, "priority": net["priority"]},
-                )
-            pbar()
+                    net_end = None
+            Eida_routing.objects.update_or_create(
+                netcode=net["net"],
+                datacenter=datacenter,
+                startdate=net_start,
+                defaults={"enddate": net_end, "priority": net["priority"]},
+            )
