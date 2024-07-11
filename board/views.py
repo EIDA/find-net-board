@@ -2,7 +2,7 @@ import logging
 import re
 import traceback
 import xml.etree.ElementTree as ET
-from datetime import datetime
+import datetime
 from urllib.parse import urlparse
 
 import requests
@@ -261,75 +261,46 @@ def is_admin(user):
 def run_tests(request):
     try:
         current_time = timezone.now().replace(microsecond=0)
-        # starting from Fdsn_registry table
-        logger.info("Making consistency checks starting from FDSN registry")
-        for net in tqdm(Fdsn_registry.objects.all(), desc="Processing"):
-            fdsn_end = (
-                net.enddate
-                if net.enddate is not None
-                else datetime.strptime("2100-01-01", "%Y-%m-%d")
-                .astimezone(datetime.timezone.utc)
-                .date()
-            )
-            routings = Eida_routing.objects.filter(
+        consistency_from_FDSN(current_time)
+        consistency_from_xml(current_time)
+        consistency_from_routing(current_time)
+    except Exception as e:
+        traceback.print_exc()
+        logger.exception()
+        return HttpResponse(str(e), status=500)
+    return HttpResponse(status=200)
+
+
+def consistency_from_FDSN(current_time):
+    logger.info("Making consistency checks starting from FDSN registry")
+    for net in tqdm(Fdsn_registry.objects.all(), desc="Processing"):
+        fdsn_end = (
+            net.enddate
+            if net.enddate is not None
+            else datetime.datetime.strptime("2100-01-01", "%Y-%m-%d")
+            .astimezone(datetime.timezone.utc)
+            .date()
+        )
+        routings = Eida_routing.objects.filter(
+            netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
+        )
+        datacite = Datacite.objects.filter(network=net).first()
+        if datacite is None:
+            page_works, has_license = None, None
+        else:
+            try:
+                r = requests.get(datacite.page, timeout=10)
+                page_works = bool(r.status_code == 200)
+            except requests.exceptions.RequestException:
+                page_works = False
+            has_license = bool(datacite.licenses is not None)
+        if not routings.exists():
+            xmls = Stationxml.objects.filter(
                 netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
             )
-            datacite = Datacite.objects.filter(network=net).first()
-            if datacite is None:
-                page_works, has_license = None, None
-            else:
-                try:
-                    r = requests.get(datacite.page, timeout=10)
-                    page_works = bool(r.status_code == 200)
-                except requests.exceptions.RequestException:
-                    page_works = False
-                has_license = bool(datacite.licenses is not None)
-            if not routings.exists():
-                xmls = Stationxml.objects.filter(
-                    netcode=net.netcode, startdate__range=(net.startdate, fdsn_end)
-                )
-                if xmls.exists():
-                    for xml in xmls:
-                        if net.doi is None:
-                            doi_match = None
-                        elif xml.doi is None:
-                            doi_match = False
-                        else:
-                            doi_match = net.doi.lower() == xml.doi.lower()
-                        Consistency(
-                            test_time=current_time,
-                            fdsn_net=net,
-                            xml_net=xml,
-                            doi=net.doi,
-                            page_works=page_works,
-                            has_license=has_license,
-                            xml_doi_match=doi_match,
-                        ).save()
-                else:
-                    Consistency(
-                        test_time=current_time,
-                        fdsn_net=net,
-                        doi=net.doi,
-                        page_works=page_works,
-                        has_license=has_license,
-                    ).save()
-            else:
-                for rout in routings:
-                    rout_end = (
-                        rout.enddate
-                        if rout.enddate is not None
-                        else datetime.strptime("2100-01-01", "%Y-%m-%d")
-                        .astimezone(datetime.timezone.utc)
-                        .date()
-                    )
-                    start_search = min(rout.startdate, net.startdate)
-                    end_search = max(rout_end, fdsn_end)
-                    xml = Stationxml.objects.filter(
-                        datacenter=rout.datacenter.name,
-                        netcode=rout.netcode,
-                        startdate__range=(start_search, end_search),
-                    ).first()
-                    if net.doi is None or xml is None:
+            if xmls.exists():
+                for xml in xmls:
+                    if net.doi is None:
                         doi_match = None
                     elif xml.doi is None:
                         doi_match = False
@@ -338,60 +309,98 @@ def run_tests(request):
                     Consistency(
                         test_time=current_time,
                         fdsn_net=net,
-                        eidarout_net=rout,
-                        xml_net=xml if xml is not None else None,
+                        xml_net=xml,
                         doi=net.doi,
                         page_works=page_works,
                         has_license=has_license,
                         xml_doi_match=doi_match,
                     ).save()
-        # starting from Stationxml table
-        logger.info("Making consistency checks starting from StationXML files")
-        unlinked_stationxml = Stationxml.objects.filter(
-            ~Q(
-                id__in=Consistency.objects.filter(test_time=current_time)
-                .exclude(xml_net_id__isnull=True)
-                .values_list("xml_net_id", flat=True)
-            )
-        )
-        for net in tqdm(unlinked_stationxml, desc="Processing"):
-            routings = Eida_routing.objects.filter(
-                Q(
-                    netcode=net.netcode,
-                    startdate__lte=net.startdate,
-                    enddate__gte=net.startdate,
-                )
-                | Q(
-                    netcode=net.netcode,
-                    startdate__lte=net.startdate,
-                    enddate__isnull=True,
-                )
-            )
-            if not routings.exists():
-                Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
-            for rout in routings:
+            else:
                 Consistency(
                     test_time=current_time,
-                    xml_net=net,
-                    eidarout_net=rout,
+                    fdsn_net=net,
                     doi=net.doi,
+                    page_works=page_works,
+                    has_license=has_license,
                 ).save()
-        # starting from Eida_routing table
-        logger.info("Making consistency checks starting from EIDA routing registry")
-        unlinked_routing = Eida_routing.objects.filter(
-            ~Q(
-                id__in=Consistency.objects.filter(test_time=current_time)
-                .exclude(eidarout_net_id__isnull=True)
-                .values_list("eidarout_net_id", flat=True)
+        else:
+            for rout in routings:
+                rout_end = (
+                    rout.enddate
+                    if rout.enddate is not None
+                    else datetime.datetime.strptime("2100-01-01", "%Y-%m-%d")
+                    .astimezone(datetime.timezone.utc)
+                    .date()
+                )
+                start_search = min(rout.startdate, net.startdate)
+                end_search = max(rout_end, fdsn_end)
+                xml = Stationxml.objects.filter(
+                    datacenter=rout.datacenter.name,
+                    netcode=rout.netcode,
+                    startdate__range=(start_search, end_search),
+                ).first()
+                if net.doi is None or xml is None:
+                    doi_match = None
+                elif xml.doi is None:
+                    doi_match = False
+                else:
+                    doi_match = net.doi.lower() == xml.doi.lower()
+                Consistency(
+                    test_time=current_time,
+                    fdsn_net=net,
+                    eidarout_net=rout,
+                    xml_net=xml if xml is not None else None,
+                    doi=net.doi,
+                    page_works=page_works,
+                    has_license=has_license,
+                    xml_doi_match=doi_match,
+                ).save()
+
+
+def consistency_from_xml(current_time):
+    logger.info("Making consistency checks starting from StationXML files")
+    unlinked_stationxml = Stationxml.objects.filter(
+        ~Q(
+            id__in=Consistency.objects.filter(test_time=current_time)
+            .exclude(xml_net_id__isnull=True)
+            .values_list("xml_net_id", flat=True)
+        )
+    )
+    for net in tqdm(unlinked_stationxml, desc="Processing"):
+        routings = Eida_routing.objects.filter(
+            Q(
+                netcode=net.netcode,
+                startdate__lte=net.startdate,
+                enddate__gte=net.startdate,
+            )
+            | Q(
+                netcode=net.netcode,
+                startdate__lte=net.startdate,
+                enddate__isnull=True,
             )
         )
-        for net in tqdm(unlinked_routing, desc="Processing"):
-            Consistency(test_time=current_time, eidarout_net=net).save()
-    except Exception as e:
-        traceback.print_exc()
-        logger.exception()
-        return HttpResponse(str(e), status=500)
-    return HttpResponse(status=200)
+        if not routings.exists():
+            Consistency(test_time=current_time, xml_net=net, doi=net.doi).save()
+        for rout in routings:
+            Consistency(
+                test_time=current_time,
+                xml_net=net,
+                eidarout_net=rout,
+                doi=net.doi,
+            ).save()
+
+
+def consistency_from_routing(current_time):
+    logger.info("Making consistency checks starting from EIDA routing registry")
+    unlinked_routing = Eida_routing.objects.filter(
+        ~Q(
+            id__in=Consistency.objects.filter(test_time=current_time)
+            .exclude(eidarout_net_id__isnull=True)
+            .values_list("eidarout_net_id", flat=True)
+        )
+    )
+    for net in tqdm(unlinked_routing, desc="Processing"):
+        Consistency(test_time=current_time, eidarout_net=net).save()
 
 
 # below view can only be used by admin to update database on will
@@ -413,11 +422,11 @@ def get_FDSN_networks():
     r = requests.get("https://www.fdsn.org/ws/networks/1/query", timeout=20)
     for net in tqdm(r.json()["networks"], desc="Processing"):
         doi = net["doi"] if net["doi"] else None
-        start = datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
+        start = datetime.datetime.strptime(net["start_date"], "%Y-%m-%d").astimezone(
             datetime.timezone.utc
         )
         end = (
-            datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
+            datetime.datetime.strptime(net["end_date"], "%Y-%m-%d").astimezone(
                 datetime.timezone.utc
             )
             if net["end_date"]
@@ -503,70 +512,78 @@ def update_stationxml_table(datacenter):
     for n in networks:
         try:
             net_start = (
-                datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S")
+                datetime.datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S")
                 .astimezone(datetime.timezone.utc)
                 .date()
             )
-        except Exception:
+        except ValueError:
             try:
                 net_start = (
-                    datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ")
+                    datetime.datetime.strptime(
+                        n.attrib["startDate"], "%Y-%m-%dT%H:%M:%SZ"
+                    )
                     .astimezone(datetime.timezone.utc)
                     .date()
                 )
-            except Exception:
+            except ValueError:
                 try:
                     net_start = (
-                        datetime.strptime(n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f")
+                        datetime.datetime.strptime(
+                            n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%f"
+                        )
                         .astimezone(datetime.timezone.utc)
                         .date()
                     )
-                except Exception:
+                except ValueError:
                     try:
                         net_start = (
-                            datetime.strptime(
+                            datetime.datetime.strptime(
                                 n.attrib["startDate"], "%Y-%m-%dT%H:%M:%S.%fZS"
                             )
                             .astimezone(datetime.timezone.utc)
                             .date()
                         )
-                    except Exception:
+                    except ValueError:
                         net_start = n.attrib["startDate"][:10]
         try:
             net_end = (
-                datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S")
+                datetime.datetime.strptime(
+                    n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S"
+                )
                 .astimezone(datetime.timezone.utc)
                 .date()
             )
-        except Exception:
+        except ValueError:
             try:
                 net_end = (
-                    datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%SZ")
+                    datetime.datetime.strptime(
+                        n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%SZ"
+                    )
                     .astimezone(datetime.timezone.utc)
                     .date()
                 )
-            except Exception:
+            except ValueError:
                 try:
                     net_end = (
-                        datetime.strptime(
+                        datetime.datetime.strptime(
                             n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%f"
                         )
                         .astimezone(datetime.timezone.utc)
                         .date()
                     )
-                except Exception:
+                except ValueError:
                     try:
                         net_end = (
-                            datetime.strptime(
+                            datetime.datetime.strptime(
                                 n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S.%fZS"
                             )
                             .astimezone(datetime.timezone.utc)
                             .date()
                         )
-                    except Exception:
+                    except ValueError:
                         try:
                             net_end = n.attrib.get("endDate")[:10]
-                        except Exception:
+                        except ValueError:
                             net_end = None
         doi = n.find("./ns:Identifier", namespaces=namespace)
         doi = doi.text if doi is not None and len(doi.text) < 100 else None
@@ -594,30 +611,30 @@ def get_EIDA_routing():
         for net in dc["params"]:
             try:
                 net_start = (
-                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
+                    datetime.datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S")
                     .astimezone(datetime.timezone.utc)
                     .date()
                 )
-            except Exception:
+            except ValueError:
                 net_start = (
-                    datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
+                    datetime.datetime.strptime(net["start"], "%Y-%m-%dT%H:%M:%S.%f")
                     .astimezone(datetime.timezone.utc)
                     .date()
                 )
             try:
                 net_end = (
-                    datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
+                    datetime.datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S")
                     .astimezone(datetime.timezone.utc)
                     .date()
                 )
-            except Exception:
+            except ValueError:
                 try:
                     net_end = (
-                        datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
+                        datetime.datetime.strptime(net["end"], "%Y-%m-%dT%H:%M:%S.%f")
                         .astimezone(datetime.timezone.utc)
                         .date()
                     )
-                except Exception:
+                except ValueError:
                     net_end = None
             Eida_routing.objects.update_or_create(
                 netcode=net["net"],

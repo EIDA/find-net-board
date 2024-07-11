@@ -20,7 +20,7 @@ app.autodiscover_tasks()
 # Define periodic tasks
 app.conf.beat_schedule = {
     "update db and run tests every 14 days": {
-        "task": "board.tasks.update_and_run",
+        "task": "board.tasks.update_db_and_run_tests",
         "schedule": timedelta(days=14),
     },
 }
