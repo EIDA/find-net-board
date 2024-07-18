@@ -50,7 +50,7 @@ For production see the recommended option using [Docker](https://www.docker.com/
 
 ### Step by step (ideal for development purposes)
 
-Follow the steps below from within project folder to locally install the application:
+Follow the steps below from within the project folder to locally install the application:
 
 - Install dependencies (recommended way using [Poetry](https://python-poetry.org/)):
   ```bash
@@ -108,3 +108,21 @@ Provided that the application is up and running:
 - Visit http://localhost:8000/board/tests/ to view the available test runs.
 
 - Visit http://localhost:8000/board/datacenter/datacenter_name/ to view results of tests for networks of a specific datacenter (replace *datacenter_name* with the name of your datacenter as it appears in https://www.fdsn.org/datacenters/). You can use the search form to view tests within a specific time frame.
+
+## Testing (for development purposes)
+
+To run the tests and get `coverage` information, run the below command from within the project folder:
+```bash
+pytest --cov-report html
+```
+
+The report will be available in `htmlcov/index.html` file.
+
+
+## Things pending
+
+- A few `ruff` errors are still not addressed. Most of them could probably be ignored though.
+
+- Test suite is quite poor and needs more meaningful tests to increase coverage percentage.
+
+- Maybe a good idea could be to use class based views.
