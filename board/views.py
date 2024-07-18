@@ -8,7 +8,7 @@ from urllib.parse import urlparse
 import requests
 from tqdm import tqdm
 from django.contrib.auth.decorators import user_passes_test
-from django.db.models import Case, Count, ExpressionWrapper, F, FloatField, Max, Q, When
+from django.db.models import Max, Q
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -127,61 +127,16 @@ def search_tests(request):
 # below view to show available test runs
 def test_runs(request):
     datacenters = request.GET.get("datacenters", None)
-    tests = Consistency.objects.all()
-    if datacenters == "eida":
-        tests = tests.filter(Q(xml_net__isnull=False) | Q(eidarout_net__isnull=False))
-    elif datacenters == "non-eida":
-        tests = tests.filter(Q(xml_net__isnull=True) & Q(eidarout_net__isnull=True))
-
-    unique_test_times = (
-        tests.values("test_time")
-        .annotate(
-            count=Count("test_time"),
-            true_page_count=Count(Case(When(page_works=True, then=1))),
-            true_license_count=Count(Case(When(has_license=True, then=1))),
-            true_xml_doi_match_count=Count(Case(When(xml_doi_match=True, then=1))),
-            null_fdsn_net_count=Count(Case(When(fdsn_net__isnull=False, then=1))),
-            null_xml_net_count=Count(Case(When(xml_net__isnull=False, then=1))),
-            null_eidarout_net_count=Count(
-                Case(When(eidarout_net__isnull=False, then=1))
-            ),
-        )
-        .annotate(
-            true_page_percentage=ExpressionWrapper(
-                (F("true_page_count") * 100.0) / F("count"), output_field=FloatField()
-            ),
-            true_license_percentage=ExpressionWrapper(
-                (F("true_license_count") * 100.0) / F("count"),
-                output_field=FloatField(),
-            ),
-            true_xml_doi_match_percentage=ExpressionWrapper(
-                (F("true_xml_doi_match_count") * 100.0) / F("count"),
-                output_field=FloatField(),
-            ),
-            null_fdsn_net_percentage=ExpressionWrapper(
-                (F("null_fdsn_net_count") * 100.0) / F("count"),
-                output_field=FloatField(),
-            ),
-            null_xml_net_percentage=ExpressionWrapper(
-                (F("null_xml_net_count") * 100.0) / F("count"),
-                output_field=FloatField(),
-            ),
-            null_eidarout_net_percentage=ExpressionWrapper(
-                (F("null_eidarout_net_count") * 100.0) / F("count"),
-                output_field=FloatField(),
-            ),
-        )
-        .order_by("-test_time")
-    )
+    tests = Consistency.objects.filter_by_datacenter(datacenters).with_statistics()
 
     if datacenters is None:
         to_ret = render(
             request,
             "board/test_runs.html",
-            {"unique_test_times": list(unique_test_times)},
+            {"unique_test_times": list(tests)},
         )
     else:
-        to_ret = JsonResponse({"unique_test_times": list(unique_test_times)})
+        to_ret = JsonResponse({"unique_test_times": list(tests)})
 
     return to_ret
 

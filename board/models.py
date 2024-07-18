@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Count, Case, When, F, ExpressionWrapper, FloatField, Q
 
 
 class Fdsn_registry(models.Model):
@@ -85,6 +86,55 @@ class Stationxml(models.Model):
         )
 
 
+class ConsistencyQuerySet(models.QuerySet):
+    def with_statistics(self):
+        return self.values("test_time").annotate(
+            count=Count("test_time"),
+            true_page_count=Count(Case(When(page_works=True, then=1))),
+            true_license_count=Count(Case(When(has_license=True, then=1))),
+            true_xml_doi_match_count=Count(Case(When(xml_doi_match=True, then=1))),
+            null_fdsn_net_count=Count(Case(When(fdsn_net__isnull=False, then=1))),
+            null_xml_net_count=Count(Case(When(xml_net__isnull=False, then=1))),
+            null_eidarout_net_count=Count(Case(When(eidarout_net__isnull=False, then=1))),
+        ).annotate(
+            true_page_percentage=ExpressionWrapper(
+                (F("true_page_count") * 100.0) / F("count"), output_field=FloatField()
+            ),
+            true_license_percentage=ExpressionWrapper(
+                (F("true_license_count") * 100.0) / F("count"), output_field=FloatField(),
+            ),
+            true_xml_doi_match_percentage=ExpressionWrapper(
+                (F("true_xml_doi_match_count") * 100.0) / F("count"), output_field=FloatField(),
+            ),
+            null_fdsn_net_percentage=ExpressionWrapper(
+                (F("null_fdsn_net_count") * 100.0) / F("count"), output_field=FloatField(),
+            ),
+            null_xml_net_percentage=ExpressionWrapper(
+                (F("null_xml_net_count") * 100.0) / F("count"), output_field=FloatField(),
+            ),
+            null_eidarout_net_percentage=ExpressionWrapper(
+                (F("null_eidarout_net_count") * 100.0) / F("count"), output_field=FloatField(),
+            ),
+        ).order_by("-test_time")
+
+    def filter_by_datacenter(self, datacenters):
+        if datacenters == "eida":
+            return self.filter(Q(xml_net__isnull=False) | Q(eidarout_net__isnull=False))
+        elif datacenters == "non-eida":
+            return self.filter(Q(xml_net__isnull=True) & Q(eidarout_net__isnull=True))
+        return self
+
+class ConsistencyManager(models.Manager):
+    def get_queryset(self):
+        return ConsistencyQuerySet(self.model, using=self._db)
+
+    def with_statistics(self):
+        return self.get_queryset().with_statistics()
+
+    def filter_by_datacenter(self, datacenters):
+        return self.get_queryset().filter_by_datacenter(datacenters)
+
+
 class Consistency(models.Model):
     test_time = models.DateTimeField(null=False)
     fdsn_net = models.ForeignKey(
@@ -100,6 +150,8 @@ class Consistency(models.Model):
     page_works = models.BooleanField(null=True, blank=True)
     has_license = models.BooleanField(null=True, blank=True)
     xml_doi_match = models.BooleanField(null=True, blank=True)
+
+    objects = ConsistencyManager()
 
     class Meta:
         constraints = [
