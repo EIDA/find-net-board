@@ -502,9 +502,7 @@ def update_stationxml_table(datacenter):
                         net_start = n.attrib["startDate"][:10]
         try:
             net_end = (
-                datetime.datetime.strptime(
-                    n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S"
-                )
+                datetime.datetime.strptime(n.attrib.get("endDate"), "%Y-%m-%dT%H:%M:%S")
                 .astimezone(datetime.timezone.utc)
                 .date()
             )

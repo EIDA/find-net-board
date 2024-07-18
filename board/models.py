@@ -88,34 +88,47 @@ class Stationxml(models.Model):
 
 class ConsistencyQuerySet(models.QuerySet):
     def with_statistics(self):
-        return self.values("test_time").annotate(
-            count=Count("test_time"),
-            true_page_count=Count(Case(When(page_works=True, then=1))),
-            true_license_count=Count(Case(When(has_license=True, then=1))),
-            true_xml_doi_match_count=Count(Case(When(xml_doi_match=True, then=1))),
-            null_fdsn_net_count=Count(Case(When(fdsn_net__isnull=False, then=1))),
-            null_xml_net_count=Count(Case(When(xml_net__isnull=False, then=1))),
-            null_eidarout_net_count=Count(Case(When(eidarout_net__isnull=False, then=1))),
-        ).annotate(
-            true_page_percentage=ExpressionWrapper(
-                (F("true_page_count") * 100.0) / F("count"), output_field=FloatField()
-            ),
-            true_license_percentage=ExpressionWrapper(
-                (F("true_license_count") * 100.0) / F("count"), output_field=FloatField(),
-            ),
-            true_xml_doi_match_percentage=ExpressionWrapper(
-                (F("true_xml_doi_match_count") * 100.0) / F("count"), output_field=FloatField(),
-            ),
-            null_fdsn_net_percentage=ExpressionWrapper(
-                (F("null_fdsn_net_count") * 100.0) / F("count"), output_field=FloatField(),
-            ),
-            null_xml_net_percentage=ExpressionWrapper(
-                (F("null_xml_net_count") * 100.0) / F("count"), output_field=FloatField(),
-            ),
-            null_eidarout_net_percentage=ExpressionWrapper(
-                (F("null_eidarout_net_count") * 100.0) / F("count"), output_field=FloatField(),
-            ),
-        ).order_by("-test_time")
+        return (
+            self.values("test_time")
+            .annotate(
+                count=Count("test_time"),
+                true_page_count=Count(Case(When(page_works=True, then=1))),
+                true_license_count=Count(Case(When(has_license=True, then=1))),
+                true_xml_doi_match_count=Count(Case(When(xml_doi_match=True, then=1))),
+                null_fdsn_net_count=Count(Case(When(fdsn_net__isnull=False, then=1))),
+                null_xml_net_count=Count(Case(When(xml_net__isnull=False, then=1))),
+                null_eidarout_net_count=Count(
+                    Case(When(eidarout_net__isnull=False, then=1))
+                ),
+            )
+            .annotate(
+                true_page_percentage=ExpressionWrapper(
+                    (F("true_page_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+                true_license_percentage=ExpressionWrapper(
+                    (F("true_license_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+                true_xml_doi_match_percentage=ExpressionWrapper(
+                    (F("true_xml_doi_match_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+                null_fdsn_net_percentage=ExpressionWrapper(
+                    (F("null_fdsn_net_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+                null_xml_net_percentage=ExpressionWrapper(
+                    (F("null_xml_net_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+                null_eidarout_net_percentage=ExpressionWrapper(
+                    (F("null_eidarout_net_count") * 100.0) / F("count"),
+                    output_field=FloatField(),
+                ),
+            )
+            .order_by("-test_time")
+        )
 
     def filter_by_datacenter(self, datacenters):
         if datacenters == "eida":
@@ -123,6 +136,7 @@ class ConsistencyQuerySet(models.QuerySet):
         elif datacenters == "non-eida":
             return self.filter(Q(xml_net__isnull=True) & Q(eidarout_net__isnull=True))
         return self
+
 
 class ConsistencyManager(models.Manager):
     def get_queryset(self):
@@ -164,15 +178,18 @@ class Consistency(models.Model):
     def __str__(self):
         fdsn_net_str = (
             f"{self.fdsn_net.netcode}-{self.fdsn_net.startdate.year}"
-            if self.fdsn_net is not None else None
+            if self.fdsn_net is not None
+            else None
         )
         eidarout_net_str = (
             f"{self.eidarout_net.netcode}-{self.eidarout_net.startdate.year}"
-            if self.eidarout_net is not None else None
+            if self.eidarout_net is not None
+            else None
         )
         xml_net_str = (
             f"{self.xml_net.netcode}-{self.xml_net.startdate.year}"
-            if self.xml_net is not None else None
+            if self.xml_net is not None
+            else None
         )
         return (
             f"({self.test_time}, {fdsn_net_str}, {eidarout_net_str}, "
