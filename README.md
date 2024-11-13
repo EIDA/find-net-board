@@ -28,13 +28,13 @@ For production see the recommended option using [Docker](https://www.docker.com/
 
 - From within the project folder, either build the Docker image:
   ```bash
-  docker build --network host -t networkstests .
+  buildah build --network host -t networkstests .
   ```
   or pull from [https://ghcr.io/eida/eida/find-net-board:main](https://ghcr.io/eida/eida/find-net-board:main).
 
 - Run the Docker container:
   ```bash
-  docker run --network host -p 8000:8000 networkstests
+  podman run --network host -p 8000:8000 networkstests
   ```
   **Note:** You might need to use you own names for database variables. The supported environment variables are:
    - NETSTESTS_DBNAME
@@ -52,46 +52,50 @@ For production see the recommended option using [Docker](https://www.docker.com/
 
 Follow the steps below from within the project folder to locally install the application:
 
-- Install dependencies (recommended way using [Poetry](https://python-poetry.org/)):
+- Install dependencies (recommended way using [uv](https://docs.astral.sh/uv/):
   ```bash
   # create a virtual environment and activate it
-  poetry shell
-  # install dependencies
-  poetry install
+  uv sync
   ```
 
+- Run a docker instance of postgresql:
+
+     podman run -p 5432:5432 -e POSTGRES_HOST_AUTH_METHOD=trust -e POSTGRES_DB=networks_tests -e POSTGRES_USER=netstests docker.io/postgres
+
 - Connect to your PostgreSQL server to create the database and a role:
-  ```bash
-  psql -U postgres -h localhost
-  ```
-  Execute the below commands in mysql shell:
+  Execute the below commands in postgresql shell:
+
+- Connect to your Postgresql server to create the database and a user:
   ```sql
-  CREATE ROLE netstests WITH LOGIN PASSWORD 'netstests' CREATEDB;
+  CREATE USER 'netstests';
   CREATE DATABASE networks_tests OWNER netstests;
-  exit
   ```
+  
+- Setup the connection for the project, by editing en .env file ([example
+  provided](.env-sample))
 
 - Go back to project folder with the virtual environment activated and build the database schema:
   ```bash
-  python manage.py migrate
+  uv run manage.py migrate
   ```
 
-- Create and admin user for the application:
+- Create an admin user for the application:
   ```bash
-  python manage.py createsuperuser
+  uv run manage.py createsuperuser
   # enter desired username, email and password in the corresponding prompts
   # be sure to remember the username and password you are going to use
   ```
 
 - Start the development server:
   ```bash
-  python manage.py runserver
+  uv run manage.py runserver
   ```
+
   **Note that deploying in a production web server might require more steps.**
 
 - Schedule periodic tasks with [Celery](https://docs.celeryq.dev/en/stable/):
   ```bash
-  celery -A netstests worker -B --loglevel=info
+  uv run celery -A netstests worker -B --loglevel=info
   ```
 
 ## Use

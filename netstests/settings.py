@@ -11,11 +11,20 @@ https://docs.djangoproject.com/en/5.0/ref/settings/
 """
 
 import os
+import environ
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Take environment variables form system and from .env file
+# See https://django-environ.readthedocs.io/en/latest/quickstart.html
+env = environ.Env()
+environ.Env.read_env(Path(BASE_DIR / ".env"))
+
+
+# Take environment variables form system and from .env file
+# See https://django-environ.readthedocs.io/en/latest/quickstart.html
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
@@ -27,7 +36,6 @@ SECRET_KEY = "django-insecure-s_8w8pic*0p+&k@onsm@w_ifx_h15%&f%xdbp-vj3@cl775d-6
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -75,15 +83,14 @@ WSGI_APPLICATION = "netstests.wsgi.application"
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("NETSTESTS_DBNAME", "networks_tests"),
-        "USER": os.getenv("NETSTESTS_DBUSER", "netstests"),
-        "PASSWORD": os.getenv("NETSTESTS_DBPASSWORD", "netstests"),
-        "HOST": os.getenv("NETSTESTS_DBHOST", "127.0.0.1"),
-        "PORT": os.getenv("NETSTESTS_DBPORT", "5433"),
+        "NAME": env.str("NETSTESTS_DBNAME"),
+        "USER": env.str("NETSTESTS_DBUSER"),
+        "PASSWORD": env.str("NETSTESTS_DBPASSWORD"),
+        "HOST": env.str("NETSTESTS_DBHOST"),
+        "PORT": env.int("NETSTESTS_DBPORT")
     }
 }
 
