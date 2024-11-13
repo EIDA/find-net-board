@@ -5,7 +5,6 @@ description = "Tool to check consistency of seismological networks metadata and 
 authors = ["Vasilis Petrakopoulos <vasilis4998@gmail.com>"]
 readme = "README.md"
 dependencies = [
-    "alive-progress>=3.2.0",
     "celery>=5.4.0",
     "django-environ>=0.11.2",
     "django>=5.1.3",
@@ -14,6 +13,7 @@ dependencies = [
     "psycopg>=3.2.3",
     "requests>=2.32.3",
     "sw-django-utils>=0.0.54",
+    "tqdm>=4.67.0",
     "whitenoise>=6.8.2",
 ]
 requires-python = ">= 3.12"
