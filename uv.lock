@@ -201,8 +201,7 @@ dependencies = [
     { name = "django" },
     { name = "django-environ" },
     { name = "gunicorn" },
-    { name = "psycopg" },
-    { name = "psycopg-binary" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "requests" },
     { name = "sw-django-utils" },
     { name = "tqdm" },
@@ -215,8 +214,7 @@ requires-dist = [
     { name = "django", specifier = ">=5.1.3" },
     { name = "django-environ", specifier = ">=0.11.2" },
     { name = "gunicorn", specifier = ">=23.0.0" },
-    { name = "psycopg", specifier = ">=3.2.3" },
-    { name = "psycopg-binary", specifier = ">=3.2.3" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2.3" },
     { name = "requests", specifier = ">=2.32.3" },
     { name = "sw-django-utils", specifier = ">=0.0.54" },
     { name = "tqdm", specifier = ">=4.67.0" },
@@ -299,6 +297,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/d1/ad/7ce016ae63e231575df0498d2395d15f005f05e32d3a2d439038e1bd0851/psycopg-3.2.3.tar.gz", hash = "sha256:a5764f67c27bec8bfac85764d23c534af2c27b893550377e37ce59c12aac47a2", size = 155550 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ce/21/534b8f5bd9734b7a2fcd3a16b1ee82ef6cad81a4796e95ebf4e0c6a24119/psycopg-3.2.3-py3-none-any.whl", hash = "sha256:644d3973fe26908c73d4be746074f6e5224b03c1101d302d9a53bf565ad64907", size = 197934 },
+]
+
+[package.optional-dependencies]
+binary = [
+    { name = "psycopg-binary", marker = "implementation_name != 'pypy'" },
 ]
 
 [[package]]
